@@ -1143,7 +1143,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
                     <input
                       type="text"
                       required
-                      placeholder="Enter GCash Ref ID..."
+                      placeholder="Enter GCash Ref NUMBER"
                       value={cashInRef}
                       onChange={(e) => setCashInRef(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
@@ -1414,7 +1414,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
               <label className="block text-slate-450 mb-1 font-semibold uppercase tracking-wider text-[10px]">MikroTik Profile (Optional)</label>
               <input
                 type="text"
-                placeholder="e.g. 1hr-default"
+                placeholder="default"
                 value={userProfile}
                 onChange={(e) => setUserProfile(e.target.value)}
                 className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-100 focus:outline-none"
