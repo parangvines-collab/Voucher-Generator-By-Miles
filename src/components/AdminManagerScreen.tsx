@@ -5,7 +5,7 @@ import { generatePortalKeyFromSerial } from '../utils/voucherHelpers';
 import { supabase } from '../supabaseClient';
 import { 
   Users, DollarSign, Send, Lock, FileSpreadsheet, 
-  Check, X, Eye, EyeOff, Calendar, PlusCircle, Trash, RefreshCw, KeyRound 
+  Check, X, Eye, EyeOff, Calendar, PlusCircle, Trash, RefreshCw, KeyRound, Link 
 } from 'lucide-react';
 
 export function AdminManagerScreen() {
@@ -15,9 +15,12 @@ export function AdminManagerScreen() {
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
   const [isAdminPassVisible, setIsAdminPassVisible] = useState(false);
 
-  // Prices
+  // Prices & Links
   const [promoPrice, setPromoPrice] = useState(30);
   const [portalKeyPrice, setPortalKeyPrice] = useState(50);
+  const [portalKeyFirstPrice, setPortalKeyFirstPrice] = useState(300);
+  const [portalKeySubsequentPrice, setPortalKeySubsequentPrice] = useState(150);
+  const [juanfiLink, setJuanfiLink] = useState('https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link');
 
   // Telegram
   const [telegramBotToken, setTelegramBotToken] = useState('');
@@ -145,47 +148,38 @@ export function AdminManagerScreen() {
   }, []);
 
   const loadAllData = async () => {
-    // Determine fallback local values
-    const localUsers = JSON.parse(localStorage.getItem('users') || '{}');
-    const localAdminPass = localStorage.getItem('adminPassword') || 'Anonymous#8856';
-    const localPromoPrice = parseInt(localStorage.getItem('promoPrice') || '30');
-    const localPortalKeyPrice = parseInt(localStorage.getItem('portalKeyPrice') || '50');
-    const localBotToken = localStorage.getItem('telegramBotToken') || '';
-    const localChatId = localStorage.getItem('telegramChatId') || '';
-    const localRequests = JSON.parse(localStorage.getItem('cashInRequests') || '[]');
-    const localPortalKeys = JSON.parse(localStorage.getItem('portalKeyRequests') || '[]');
-    const localPromoHistory = JSON.parse(localStorage.getItem('promoHistory') || '[]');
-
     try {
       // 1. Load setting values
       const { data: settings, error: errSettings } = await supabase.from('global_settings').select('*');
-      let sbAdminPass = localAdminPass;
-      let sbPromoPrice = localPromoPrice;
-      let sbPortalKeyPrice = localPortalKeyPrice;
-      let sbBotToken = localBotToken;
-      let sbChatId = localChatId;
+      let sbAdminPass = 'Anonymous#8856';
+      let sbPromoPrice = 30;
+      let sbPortalKeyPrice = 50;
+      let sbPortalKeyFirstPrice = 300;
+      let sbPortalKeySubsequentPrice = 150;
+      let sbJuanfiLink = 'https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link';
+      let sbBotToken = '';
+      let sbChatId = '';
 
       if (!errSettings && settings && settings.length > 0) {
         settings.forEach((s: any) => {
           if (s.key === 'admin_password') sbAdminPass = s.value;
-          if (s.key === 'promo_price') sbPromoPrice = parseInt(s.value) || localPromoPrice;
-          if (s.key === 'portal_key_price') sbPortalKeyPrice = parseInt(s.value) || localPortalKeyPrice;
+          if (s.key === 'promo_price') sbPromoPrice = parseInt(s.value) || 30;
+          if (s.key === 'portal_key_price') sbPortalKeyPrice = parseInt(s.value) || 50;
+          if (s.key === 'portal_key_first_price') sbPortalKeyFirstPrice = parseInt(s.value) || 300;
+          if (s.key === 'portal_key_subsequent_price') sbPortalKeySubsequentPrice = parseInt(s.value) || 150;
           if (s.key === 'telegram_bot_token') sbBotToken = s.value;
           if (s.key === 'telegram_chat_id') sbChatId = s.value;
+          if (s.key === 'juanfi_link') sbJuanfiLink = s.value || 'https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link';
         });
       }
       setAdminPassword(sbAdminPass);
       setPromoPrice(sbPromoPrice);
       setPortalKeyPrice(sbPortalKeyPrice);
+      setPortalKeyFirstPrice(sbPortalKeyFirstPrice);
+      setPortalKeySubsequentPrice(sbPortalKeySubsequentPrice);
+      setJuanfiLink(sbJuanfiLink);
       setTelegramBotToken(sbBotToken);
       setTelegramChatId(sbChatId);
-
-      // Keep localStorage synced
-      localStorage.setItem('adminPassword', sbAdminPass);
-      localStorage.setItem('promoPrice', String(sbPromoPrice));
-      localStorage.setItem('portalKeyPrice', String(sbPortalKeyPrice));
-      localStorage.setItem('telegramBotToken', sbBotToken);
-      localStorage.setItem('telegramChatId', sbChatId);
 
       // 2. Load Profiles / Operators
       const { data: profiles, error: errProfiles } = await supabase.from('profiles').select('*');
@@ -199,9 +193,6 @@ export function AdminManagerScreen() {
           };
         });
         setUsers(mappedUsers);
-        localStorage.setItem('users', JSON.stringify(mappedUsers));
-      } else {
-        setUsers(localUsers);
       }
 
       // 3. Load Cash-In Requests
@@ -216,9 +207,6 @@ export function AdminManagerScreen() {
           approvedAmount: c.approved_amount ? parseFloat(c.approved_amount) : undefined
         }));
         setCashInRequests(mappedCir);
-        localStorage.setItem('cashInRequests', JSON.stringify(mappedCir));
-      } else {
-        setCashInRequests(localRequests);
       }
 
       // 4. Load Portal Key Requests
@@ -232,9 +220,6 @@ export function AdminManagerScreen() {
           date: p.date
         }));
         setPortalKeyRequests(mappedPkr);
-        localStorage.setItem('portalKeyRequests', JSON.stringify(mappedPkr));
-      } else {
-        setPortalKeyRequests(localPortalKeys);
       }
 
       // 5. Load Promo Purchase History
@@ -246,28 +231,13 @@ export function AdminManagerScreen() {
           date: p.date
         }));
         setPromoHistory(mappedPrh);
-        localStorage.setItem('promoHistory', JSON.stringify(mappedPrh));
-      } else {
-        setPromoHistory(localPromoHistory);
       }
     } catch (err) {
-      console.warn('Network issue or Supabase tables not initialized, running with localStorage', err);
-      setUsers(localUsers);
-      setAdminPassword(localAdminPass);
-      setPromoPrice(localPromoPrice);
-      setPortalKeyPrice(localPortalKeyPrice);
-      setTelegramBotToken(localBotToken);
-      setTelegramChatId(localChatId);
-      setCashInRequests(localRequests);
-      setPortalKeyRequests(localPortalKeys);
-      setPromoHistory(localPromoHistory);
+      console.warn('Network issue or Supabase tables not initialized', err);
     }
   };
 
-  const saveData = (key: string, data: any) => {
-    localStorage.setItem(key, JSON.stringify(data));
-    loadAllData();
-  };
+
 
   // User list actions
   const togglePasswordVisible = (user: string) => {
@@ -290,21 +260,7 @@ export function AdminManagerScreen() {
       formattedExp = newExp;
     }
 
-    // 1. Sync local memory
-    const updatedUsers = { ...users };
-    const rawExisting = updatedUsers[user];
-    const existing = typeof rawExisting === 'object' && rawExisting !== null 
-      ? rawExisting 
-      : { password: String(rawExisting || ''), expiration: '', balance: 0 };
-
-    updatedUsers[user] = {
-      ...existing,
-      expiration: formattedExp || ''
-    };
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
-    localStorage.setItem(`account_locked_${user}`, 'false');
-
-    // 2. Sync Supabase profiles
+    // Sync Supabase profiles
     try {
       const { data: prof } = await supabase.from('profiles').select('id').eq('username', user).single();
       if (prof) {
@@ -330,20 +286,7 @@ export function AdminManagerScreen() {
       return;
     }
 
-    // 1. Sync local memory
-    const updatedUsers = { ...users };
-    const rawExisting = updatedUsers[user];
-    const existing = typeof rawExisting === 'object' && rawExisting !== null 
-      ? rawExisting 
-      : { password: String(rawExisting || ''), expiration: '', balance: 0 };
-
-    updatedUsers[user] = {
-      ...existing,
-      balance: parsed
-    };
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
-
-    // 2. Sync Supabase profiles
+    // Sync Supabase profiles
     try {
       const { data: prof } = await supabase.from('profiles').select('id').eq('username', user).single();
       if (prof) {
@@ -367,12 +310,7 @@ export function AdminManagerScreen() {
     );
     if (!confirmed) return;
 
-    // 1. Sync local memory
-    const updatedUsers = { ...users };
-    delete updatedUsers[user];
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
-
-    // 2. Sync Supabase profiles
+    // Sync Supabase profiles
     try {
       const { data: prof } = await supabase.from('profiles').select('id').eq('username', user).single();
       if (prof) {
@@ -442,11 +380,6 @@ export function AdminManagerScreen() {
       console.warn('Creating profile on database bypass or issue:', err);
     }
 
-    // Fast sync local
-    const updatedUsers = { ...users };
-    updatedUsers[trimUser] = { password: newOperatorPass, expiration: '', balance: 0 };
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
-    
     setNewOperatorUser('');
     setNewOperatorPass('');
     setShowAddOperatorForm(false);
@@ -466,7 +399,6 @@ export function AdminManagerScreen() {
       return;
     }
 
-    localStorage.setItem('promoPrice', String(num));
     try {
       await supabase.from('global_settings').upsert([{ key: 'promo_price', value: String(num) }]);
     } catch (e) {}
@@ -475,8 +407,8 @@ export function AdminManagerScreen() {
     loadAllData();
   };
 
-  const handleEditPortalKeyPrice = async () => {
-    const val = await showPrompt('Adjust Activation Price', 'Enter new PortalKey access activation price (PHP):', String(portalKeyPrice), 'Enter price in PHP');
+  const handleEditPortalKeyFirstPrice = async () => {
+    const val = await showPrompt('First-Time PortalKey Price', 'Enter new standard First-Time PortalKey purchase price (PHP):', String(portalKeyFirstPrice), 'Enter price in PHP');
     if (val === null) return;
     const num = parseInt(val);
     if (isNaN(num) || num <= 0) {
@@ -484,12 +416,50 @@ export function AdminManagerScreen() {
       return;
     }
 
-    localStorage.setItem('portalKeyPrice', String(num));
     try {
-      await supabase.from('global_settings').upsert([{ key: 'portal_key_price', value: String(num) }]);
+      await supabase.from('global_settings').upsert([{ key: 'portal_key_first_price', value: String(num) }]);
     } catch (e) {}
 
-    ActivityLogger.logActivity('setting_changed', `Changed PortalKey Price to ${num} pesos`);
+    ActivityLogger.logActivity('setting_changed', `Changed First-Time PortalKey price to ${num} PHP`);
+    loadAllData();
+  };
+
+  const handleEditPortalKeySubsequentPrice = async () => {
+    const val = await showPrompt('Renewal/Subsequent PortalKey Price', 'Enter new subsequent purchase/renewal PortalKey price (PHP):', String(portalKeySubsequentPrice), 'Enter price in PHP');
+    if (val === null) return;
+    const num = parseInt(val);
+    if (isNaN(num) || num <= 0) {
+      await showAlert('Invalid Input', 'Please enter a valid positive integer.');
+      return;
+    }
+
+    try {
+      await supabase.from('global_settings').upsert([{ key: 'portal_key_subsequent_price', value: String(num) }]);
+    } catch (e) {}
+
+    ActivityLogger.logActivity('setting_changed', `Changed Subsequent/Renewal PortalKey price to ${num} PHP`);
+    loadAllData();
+  };
+
+  const handleEditJuanfiLink = async () => {
+    const val = await showPrompt(
+      'Modify Portal Download Link',
+      'Enter the new Google Drive or download URL for the Enhanced JuanFi Portal file:',
+      juanfiLink,
+      'https://drive.google.com/...'
+    );
+    if (val === null) return;
+    const urlTrimmed = val.trim();
+    if (!urlTrimmed) {
+      await showAlert('Invalid Link', 'Download URL cannot be empty.');
+      return;
+    }
+
+    try {
+      await supabase.from('global_settings').upsert([{ key: 'juanfi_link', value: urlTrimmed }]);
+    } catch (e) {}
+
+    ActivityLogger.logActivity('setting_changed', `Changed JuanFi Portal download link to: ${urlTrimmed}`);
     loadAllData();
   };
 
@@ -506,9 +476,6 @@ export function AdminManagerScreen() {
       return;
     }
 
-    localStorage.setItem('telegramBotToken', botTok);
-    localStorage.setItem('telegramChatId', chat);
-    
     try {
       await supabase.from('global_settings').upsert([
         { key: 'telegram_bot_token', value: botTok },
@@ -555,7 +522,7 @@ export function AdminManagerScreen() {
     e.preventDefault();
     setPasswordMsg({});
 
-    const storedPass = localStorage.getItem('adminPassword') || 'Anonymous#8856';
+    const storedPass = adminPassword || 'Anonymous#8856';
     if (currentPass !== storedPass) {
       setPasswordMsg({ success: false, msg: 'Current admin password is incorrect.' });
       return;
@@ -571,7 +538,6 @@ export function AdminManagerScreen() {
       return;
     }
 
-    localStorage.setItem('adminPassword', newPass);
     try {
       await supabase.from('global_settings').upsert([{ key: 'admin_password', value: newPass }]);
     } catch (er) {}
@@ -631,27 +597,6 @@ export function AdminManagerScreen() {
       console.warn('Could not credit target operator balance in Supabase:', e);
     }
 
-    // 3. Keep local fallback in sync
-    const updatedRequests = [...cashInRequests];
-    const targetIdx = updatedRequests.findIndex(r => r.refNumber === req.refNumber && r.username === req.username && r.status === 'pending');
-    if (targetIdx !== -1) {
-      updatedRequests[targetIdx].status = 'approved';
-      updatedRequests[targetIdx].approvedAmount = amountNum;
-    }
-    localStorage.setItem('cashInRequests', JSON.stringify(updatedRequests));
-
-    const updatedUsers = { ...users };
-    const rawExisting = updatedUsers[req.username];
-    const existing = typeof rawExisting === 'object' && rawExisting !== null 
-      ? rawExisting 
-      : { password: String(rawExisting || ''), expiration: '', balance: 0 };
-
-    updatedUsers[req.username] = {
-      ...existing,
-      balance: (existing.balance || 0) + amountNum
-    };
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
-
     ActivityLogger.logActivity('cash_in_approved', `Approved cash-in balance load for ${req.username}`, { username: req.username, amount: amountNum, ref: req.refNumber });
     loadAllData();
     await showAlert('Success', `Successfully loaded ${amountNum} PHP to ${req.username}'s account portfolio.`);
@@ -675,14 +620,6 @@ export function AdminManagerScreen() {
       console.warn('Could not deny request in Supabase:', e);
     }
 
-    // 2. Keep local backup in sync
-    const updatedRequests = [...cashInRequests];
-    const targetIdx = updatedRequests.findIndex(r => r.refNumber === req.refNumber && r.username === req.username && r.status === 'pending');
-    if (targetIdx !== -1) {
-      updatedRequests[targetIdx].status = 'denied';
-    }
-    localStorage.setItem('cashInRequests', JSON.stringify(updatedRequests));
-
     ActivityLogger.logActivity('cash_in_denied', `Denied load requests for ${req.username}`, { username: req.username, ref: req.refNumber });
     loadAllData();
     await showAlert('Request Declined', 'Cash-in request has been successfully declined.');
@@ -701,10 +638,6 @@ export function AdminManagerScreen() {
             return;
         }
 
-        // 2. Keep local fallback in sync
-        const updatedRequests = cashInRequests.filter(r => !(r.refNumber === req.refNumber && r.username === req.username));
-        localStorage.setItem('cashInRequests', JSON.stringify(updatedRequests));
-        
         ActivityLogger.logActivity('cash_in_deleted', `Deleted cash-in request record for ${req.username}`, { username: req.username, ref: req.refNumber });
         loadAllData();
         await showAlert('Success', 'Ticket record deleted successfully!');
@@ -713,9 +646,13 @@ export function AdminManagerScreen() {
   const handleClearProcessedRequests = async () => {
     const confirmed = await showConfirm('Clear Processed Queues', 'Do you want to wipe all records that are already Approved or Denied?');
     if (!confirmed) return;
-    const pendingOnly = cashInRequests.filter(r => r.status === 'pending');
-    saveData('cashInRequests', pendingOnly);
+    try {
+      await supabase.from('cash_in_requests').delete().neq('status', 'pending');
+    } catch (e) {
+      console.warn('Could not clear processed cash-in requests in Supabase:', e);
+    }
     ActivityLogger.logActivity('cash_in_history_cleared', 'Cleared processed cash-in log queue');
+    loadAllData();
   };
 
   // PortalKey managers
@@ -753,27 +690,6 @@ export function AdminManagerScreen() {
       return;
     }
 
-    // 2. Mutate portalKeyRequests
-    const updatedKeys = [...portalKeyRequests];
-    const targetIdx = updatedKeys.findIndex(k => k.serialNumber === req.serialNumber && k.username === req.username && k.portalKey === req.portalKey);
-    if (targetIdx !== -1) {
-      updatedKeys[targetIdx].serialNumber = serialTrimmed;
-      updatedKeys[targetIdx].portalKey = newKey;
-    }
-    localStorage.setItem('portalKeyRequests', JSON.stringify(updatedKeys));
-
-    // 3. Mutate user portalKeys object
-    const portalKeysObj = JSON.parse(localStorage.getItem('portalKeys') || '{}');
-    if (portalKeysObj[req.username]) {
-      portalKeysObj[req.username] = portalKeysObj[req.username].map((el: any) => {
-        if (el.serial === req.serialNumber) {
-          return { ...el, serial: serialTrimmed, code: newKey };
-        }
-        return el;
-      });
-      localStorage.setItem('portalKeys', JSON.stringify(portalKeysObj));
-    }
-
     ActivityLogger.logActivity('portalkey_edited', `Modified activation serial key for ${req.username}`, { username: req.username, new_serial: serialTrimmed });
     loadAllData();
     await showAlert('Success', 'MikroTik serial entry updated and active PortalKey generated successfully!');
@@ -792,17 +708,6 @@ export function AdminManagerScreen() {
             return;
         }
 
-        // 2. Update local state
-        const updatedKeys = portalKeyRequests.filter(k => !(k.serialNumber === req.serialNumber && k.username === req.username));
-        localStorage.setItem('portalKeyRequests', JSON.stringify(updatedKeys));
-
-        // Clean up inside users list too
-        const portalKeysObj = JSON.parse(localStorage.getItem('portalKeys') || '{}');
-        if (portalKeysObj[req.username]) {
-            portalKeysObj[req.username] = portalKeysObj[req.username].filter((el: any) => el.serial !== req.serialNumber);
-            localStorage.setItem('portalKeys', JSON.stringify(portalKeysObj));
-        }
-
         ActivityLogger.logActivity('portalkey_deleted', `Deleted PortalKey database row for ${req.username}`);
         loadAllData();
         await showAlert('Success', 'Portal key record deleted successfully!');
@@ -811,8 +716,11 @@ export function AdminManagerScreen() {
   const handleClearPortalKeys = async () => {
     const confirmed = await showConfirm('Clear Activation Keys', 'Wipe out all generated activation keys logs completely?');
     if (!confirmed) return;
-    localStorage.setItem('portalKeyRequests', '[]');
-    localStorage.setItem('portalKeys', '{}');
+    try {
+      await supabase.from('portal_keys').delete().neq('username', '');
+    } catch (e) {
+      console.warn('Error clearing portal keys in Supabase:', e);
+    }
     ActivityLogger.logActivity('portalkey_history_cleared', 'Wiped overall network activation keys index');
     loadAllData();
   };
@@ -820,8 +728,13 @@ export function AdminManagerScreen() {
   const handleClearPromoHistory = async () => {
     const confirmed = await showConfirm('Clear Purchase Logs', 'Wipe all purchase records of 1-Month Voucher generator subscriptions?');
     if (!confirmed) return;
-    saveData('promoHistory', []);
+    try {
+      await supabase.from('promo_history').delete().neq('username', '');
+    } catch (e) {
+      console.warn('Could not clear promo history in Supabase:', e);
+    }
     ActivityLogger.logActivity('promo_history_cleared', 'Cleared operator rental logs');
+    loadAllData();
   };
 
     const handleDeletePromoRow = async (item: PromoHistoryItem) => {
@@ -837,10 +750,6 @@ export function AdminManagerScreen() {
             return;
         }
 
-        // 2. Update local state
-        const updated = promoHistory.filter(h => !(h.username === item.username && h.date === item.date));
-        localStorage.setItem('promoHistory', JSON.stringify(updated));
-        
         ActivityLogger.logActivity('promo_history_deleted', `Deleted promo history record for ${item.username}`);
         loadAllData();
         await showAlert('Success', 'Promo history record deleted successfully!');
@@ -854,7 +763,7 @@ export function AdminManagerScreen() {
     <div className="space-y-8 animate-fade-in">
       
       {/* Overview stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between shadow-lg">
           <div>
             <span className="block text-xs uppercase tracking-widest text-slate-400 font-bold mb-1">Operator Rent Price</span>
@@ -874,16 +783,52 @@ export function AdminManagerScreen() {
         <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between shadow-lg">
           <div>
             <span className="block text-xs uppercase tracking-widest text-slate-400 font-bold mb-1">PortalKey Price</span>
-            <span className="text-2xl font-extrabold text-slate-100">PHP {portalKeyPrice}</span>
-            <button 
-              onClick={handleEditPortalKeyPrice}
-              className="block text-[11px] text-blue-400 hover:text-blue-300 hover:underline mt-1 focus:outline-none"
-            >
-              Adjust pricing rate
-            </button>
+            <div className="text-slate-100 font-extrabold text-sm space-y-1">
+              <div className="flex items-center gap-1.5">
+                <span>1st Buy:</span>
+                <span className="text-indigo-400">PHP {portalKeyFirstPrice}</span>
+                <button 
+                  onClick={handleEditPortalKeyFirstPrice}
+                  className="text-[10px] text-blue-450 hover:text-blue-400 hover:underline font-medium ml-1 focus:outline-none"
+                >
+                  Update
+                </button>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span>Subsequent:</span>
+                <span className="text-emerald-400">PHP {portalKeySubsequentPrice}</span>
+                <button 
+                  onClick={handleEditPortalKeySubsequentPrice}
+                  className="text-[10px] text-blue-450 hover:text-blue-400 hover:underline font-medium ml-1 focus:outline-none"
+                >
+                  Update
+                </button>
+              </div>
+            </div>
+            <span className="block text-[9px] text-slate-500 mt-1">
+              Active dynamic tiering
+            </span>
           </div>
           <div className="w-12 h-12 bg-indigo-500/10 text-indigo-400 rounded-xl flex items-center justify-center border border-indigo-500/20 shadow-inner">
             <KeyRound className="w-6 h-6" />
+          </div>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between shadow-lg">
+          <div>
+            <span className="block text-xs uppercase tracking-widest text-slate-400 font-bold mb-1">JuanFi Portal Link</span>
+            <span className="text-sm font-bold text-emerald-400 truncate max-w-[140px] block" title={juanfiLink}>
+              {juanfiLink ? juanfiLink.substring(0, 22) + (juanfiLink.length > 22 ? '...' : '') : 'Not Configured'}
+            </span>
+            <button 
+              onClick={handleEditJuanfiLink}
+              className="block text-[11px] text-blue-400 hover:text-blue-300 hover:underline mt-1 focus:outline-none"
+            >
+              Update download URL
+            </button>
+          </div>
+          <div className="w-12 h-12 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center border border-emerald-500/20 shadow-inner">
+            <Link className="w-5 h-5" />
           </div>
         </div>
 
@@ -1029,7 +974,7 @@ export function AdminManagerScreen() {
                             Balance: <strong className="text-emerald-400">PHP {uData.balance || 0}</strong>
                           </span>
                           <span className="text-slate-400 flex items-center gap-1.5 bg-slate-950/40 px-2 py-1 rounded border border-slate-855/40 text-[11px]">
-                            License: <strong className="text-indigo-400">{uData.expiration ? `Expires ${uData.expiration}` : 'None'}</strong>
+                            License: <strong className="text-indigo-400">{uData.expiration ? `Expires ${uData.expiration.split('T')[0]}` : 'None'}</strong>
                           </span>
                         </div>
                       </div>

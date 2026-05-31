@@ -27,17 +27,29 @@ export function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
     }
 
     // Bypass Supabase Auth for local admin master credentials
-    const storedAdminPass = localStorage.getItem('adminPassword') || 'Anonymous#8856';
-    if (trimUser === 'admin' && password === storedAdminPass) {
-      sessionStorage.setItem('authenticated', 'true');
-      sessionStorage.setItem('username', 'admin');
-      ActivityLogger.logActivity('user_login', 'Admin logged in', { username: 'admin' });
-      setSuccessMsg('Login successful! Redirecting...');
-      window.history.replaceState({}, '', '/');
-      setTimeout(() => {
-        onLoginSuccess('admin');
-      }, 800);
-      return;
+    if (trimUser === 'admin') {
+      let storedAdminPass = 'Anonymous#8856';
+      try {
+        const { data } = await supabase.from('global_settings').select('value').eq('key', 'admin_password').single();
+        if (data && data.value) {
+          storedAdminPass = data.value;
+        }
+      } catch (e) {}
+
+      if (password === storedAdminPass) {
+        sessionStorage.setItem('authenticated', 'true');
+        sessionStorage.setItem('username', 'admin');
+        ActivityLogger.logActivity('user_login', 'Admin logged in', { username: 'admin' });
+        setSuccessMsg('Login successful! Redirecting...');
+        window.history.replaceState({}, '', '/');
+        setTimeout(() => {
+          onLoginSuccess('admin');
+        }, 800);
+        return;
+      } else {
+        setErrorMsg('Invalid admin password.');
+        return;
+      }
     }
 
     // Map input to email format for Supabase Auth consistency
@@ -53,12 +65,7 @@ export function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
         throw error;
       }
 
-      // Check or write default local storage user configuration for layout functionality
-      const users = JSON.parse(localStorage.getItem('users') || '{}');
-      if (!users[trimUser]) {
-        users[trimUser] = { password, expiration: '', balance: 0 };
-        localStorage.setItem('users', JSON.stringify(users));
-      }
+
 
       sessionStorage.setItem('authenticated', 'true');
       sessionStorage.setItem('username', trimUser);
@@ -121,10 +128,7 @@ export function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
         throw error;
       }
 
-      // Set default local balance / config in localStorage
-      const users = JSON.parse(localStorage.getItem('users') || '{}');
-      users[trimUser] = { password, expiration: '', balance: 0 };
-      localStorage.setItem('users', JSON.stringify(users));
+
 
       ActivityLogger.logActivity('user_registered', 'New user registered via Supabase', { username: trimUser });
       setSuccessMsg('Account created successfully! Redirecting...');
@@ -180,7 +184,7 @@ export function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
             <input
               type="text"
               required
-              placeholder="e.g. jsmith"
+              placeholder="miles@example.com"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm"

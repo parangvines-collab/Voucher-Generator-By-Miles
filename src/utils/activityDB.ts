@@ -1,17 +1,7 @@
 import { ActivityLog } from '../types';
 import { supabase } from '../supabaseClient';
 
-const ACTIVITIES_KEY = 'voucherActivities';
-
 export const ActivityLogger = {
-  getActivities(): ActivityLog[] {
-    try {
-      return JSON.parse(localStorage.getItem(ACTIVITIES_KEY) || '[]');
-    } catch {
-      return [];
-    }
-  },
-
   async getActivitiesFromSupabase(): Promise<ActivityLog[]> {
     try {
       const { data, error } = await supabase
@@ -32,26 +22,13 @@ export const ActivityLogger = {
       }));
     } catch (err) {
       console.error('Failed to fetch logs from Supabase:', err);
-      return this.getActivities();
+      return [];
     }
   },
 
   logActivity(type: string, description: string, details: Record<string, any> = {}): void {
-    const activities = this.getActivities();
     const user = sessionStorage.getItem('username') || 'anonymous';
     
-    const newLog: ActivityLog = {
-      id: String(Date.now()) + Math.random().toString(36).substr(2, 5),
-      type,
-      user,
-      description,
-      details,
-      timestamp: new Date().toISOString()
-    };
-    
-    activities.push(newLog);
-    localStorage.setItem(ACTIVITIES_KEY, JSON.stringify(activities));
-
     // Write to Supabase asynchronously
     supabase.auth.getSession().then(({ data }) => {
       const userId = data?.session?.user?.id || null;
@@ -71,7 +48,6 @@ export const ActivityLogger = {
   },
 
   async clearActivities(): Promise<void> {
-    localStorage.setItem(ACTIVITIES_KEY, JSON.stringify([]));
     try {
       // Clear Supabase activity_logs
       const { error } = await supabase
@@ -86,4 +62,3 @@ export const ActivityLogger = {
     }
   }
 };
-

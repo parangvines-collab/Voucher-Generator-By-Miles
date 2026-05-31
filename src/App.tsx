@@ -28,31 +28,21 @@ export default function App() {
       setCurrentUser(username);
       loadUserBalance(username);
     }
-
-    // Double-check base databases exist
-    if (!localStorage.getItem('users')) {
-      localStorage.setItem('users', JSON.stringify({}));
-    }
-    if (!localStorage.getItem('adminPassword') || localStorage.getItem('adminPassword') === 'admin123' || localStorage.getItem('adminPassword') === 'admin') {
-      localStorage.setItem('adminPassword', 'Anonymous#8856'); // Default master password
-    }
-    if (!localStorage.getItem('promoPrice')) {
-      localStorage.setItem('promoPrice', '30');
-    }
-    if (!localStorage.getItem('portalKeyPrice')) {
-      localStorage.setItem('portalKeyPrice', '50');
-    }
   }, []);
 
-  const loadUserBalance = (user: string) => {
+  const loadUserBalance = async (user: string) => {
     if (user === 'admin') {
       setUserBalance(99999);
       return;
     }
-    const users = JSON.parse(localStorage.getItem('users') || '{}');
-    if (users[user]) {
-      setUserBalance(users[user].balance || 0);
-    } else {
+    try {
+      const { data, error } = await supabase.from('profiles').select('balance').eq('username', user).single();
+      if (!error && data) {
+        setUserBalance(parseFloat(data.balance) || 0);
+      } else {
+        setUserBalance(0);
+      }
+    } catch (e) {
       setUserBalance(0);
     }
   };
@@ -233,10 +223,6 @@ export default function App() {
               <p className="text-xs text-slate-400 mt-1">
                 {activeTab === 'vouchers' ? 'Produce high-quality offline network vouchers' : activeTab === 'admin' ? 'Edit operator expiration times, loads, and global token prices' : 'Browse active login histories and tickets activities catalog'}
               </p>
-            </div>
-            {/* Quick stats on operators */}
-            <div className="text-xs text-slate-500 font-medium">
-               Session status: <strong className="text-emerald-400 font-bold uppercase">Online</strong>
             </div>
           </div>
 

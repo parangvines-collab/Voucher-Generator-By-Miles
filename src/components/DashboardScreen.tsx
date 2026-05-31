@@ -37,6 +37,9 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
   // Pricing
   const [promoPrice, setPromoPrice] = useState(30);
   const [portalKeyPrice, setPortalKeyPrice] = useState(50);
+  const [portalKeyFirstPrice, setPortalKeyFirstPrice] = useState(300);
+  const [portalKeySubsequentPrice, setPortalKeySubsequentPrice] = useState(150);
+  const [juanfiLink, setJuanfiLink] = useState('https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link');
 
   // Submissions
   const [cashInRef, setCashInRef] = useState('');
@@ -170,10 +173,6 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
   // Setup mount load and refresh polling
   useEffect(() => {
     loadUserMetadata();
-    // Cache toggle panels from localStorage standard choices
-    setShowPromo(localStorage.getItem(`card_promo_${currentUser}`) === 'shown');
-    setShowCashIn(localStorage.getItem(`card_cash_${currentUser}`) === 'shown');
-    setShowPortalKeys(localStorage.getItem(`card_port_${currentUser}`) === 'shown');
 
     // Interval to dynamically poll user status and GCash tickets
     const interval = setInterval(() => {
@@ -184,28 +183,32 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
   }, [currentUser]);
 
   const loadUserMetadata = async () => {
-    const users = JSON.parse(localStorage.getItem('users') || '{}');
-    const adminPass = localStorage.getItem('adminPassword') || 'Anonymous#8856';
-    
     // Set prices
-    let fbPromoPrice = parseInt(localStorage.getItem('promoPrice') || '30');
-    let fbPortalKeyPrice = parseInt(localStorage.getItem('portalKeyPrice') || '50');
+    let fbPromoPrice = 30;
+    let fbPortalKeyPrice = 50;
+    let fbPortalKeyFirstPrice = 300;
+    let fbPortalKeySubsequentPrice = 150;
+    let fbJuanfiLink = 'https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link';
 
     try {
       // 1. Fetch Global Setting Prices
       const { data: globalSettings } = await supabase.from('global_settings').select('*');
       if (globalSettings && globalSettings.length > 0) {
         globalSettings.forEach((s: any) => {
-          if (s.key === 'promo_price') fbPromoPrice = parseInt(s.value) || fbPromoPrice;
-          if (s.key === 'portal_key_price') fbPortalKeyPrice = parseInt(s.value) || fbPortalKeyPrice;
+          if (s.key === 'promo_price') fbPromoPrice = parseInt(s.value) || 30;
+          if (s.key === 'portal_key_price') fbPortalKeyPrice = parseInt(s.value) || 50;
+          if (s.key === 'portal_key_first_price') fbPortalKeyFirstPrice = parseInt(s.value) || 300;
+          if (s.key === 'portal_key_subsequent_price') fbPortalKeySubsequentPrice = parseInt(s.value) || 150;
+          if (s.key === 'juanfi_link') fbJuanfiLink = s.value || 'https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link';
         });
       }
     } catch (e) {}
 
     setPromoPrice(fbPromoPrice);
     setPortalKeyPrice(fbPortalKeyPrice);
-    localStorage.setItem('promoPrice', String(fbPromoPrice));
-    localStorage.setItem('portalKeyPrice', String(fbPortalKeyPrice));
+    setPortalKeyFirstPrice(fbPortalKeyFirstPrice);
+    setPortalKeySubsequentPrice(fbPortalKeySubsequentPrice);
+    setJuanfiLink(fbJuanfiLink);
 
     if (currentUser === 'admin') {
       setIsAccessGranted(true);
@@ -223,40 +226,11 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
         if (!errProf && prof) {
           sbBalance = parseFloat(prof.balance) || 0;
           sbExpiration = prof.expiration || '';
-        } else {
-          // Fallback or lazy create if profile doesn't exist
-          const uData = users[currentUser] || { password: '', expiration: '', balance: 0 };
-          sbBalance = uData.balance || 0;
-          sbExpiration = uData.expiration || '';
-
-          // Upsert to Supabase to establish database synchronization smoothly
-          const { data: sData } = await supabase.auth.getSession();
-          if (sData && sData.session) {
-            await supabase.from('profiles').upsert([{
-              id: sData.session.user.id,
-              username: currentUser,
-              balance: sbBalance,
-              expiration: sbExpiration || null
-            }]);
-          }
         }
-      } catch (err) {
-        const uData = users[currentUser] || { password: '', expiration: '', balance: 0 };
-        sbBalance = uData.balance || 0;
-        sbExpiration = uData.expiration || '';
-      }
+      } catch (err) {}
 
       setBalance(sbBalance);
       setExpiration(sbExpiration);
-
-      // Mutate local storage operator state to match database
-      const uData = users[currentUser] || { password: '', expiration: '', balance: 0 };
-      users[currentUser] = {
-        ...uData,
-        balance: sbBalance,
-        expiration: sbExpiration
-      };
-      localStorage.setItem('users', JSON.stringify(users));
 
       // Propagate the updated balance info back to main Header
       onUpdateBalance?.();
@@ -269,19 +243,15 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
         const today = new Date();
         today.setHours(0,0,0,0);
         
-        const previouslyLocked = localStorage.getItem(`account_locked_${currentUser}`) === 'true';
-
-        if (expDate < today || previouslyLocked) {
+        if (expDate < today) {
           setIsExpired(true);
           setIsAccessGranted(false);
-          localStorage.setItem(`account_locked_${currentUser}`, 'true');
         } else {
           setIsAccessGranted(true);
           setIsExpired(false);
           const diffTime = expDate.getTime() - today.getTime();
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
           setRemainingDays(diffDays);
-          localStorage.setItem(`account_locked_${currentUser}`, 'false');
         }
       }
     }
@@ -290,7 +260,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
     try {
       // 1. User GCash cash-in requests
       const { data: requests, error: errReq } = await supabase.from('cash_in_requests').select('*').eq('username', currentUser).order('date', { ascending: false });
-      if (!errReq && requests && requests.length > 0) {
+      if (!errReq && requests) {
         const mappedCir: CashInRequest[] = requests.map((c: any) => ({
           username: c.username,
           refNumber: c.ref_number,
@@ -300,71 +270,38 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
           approvedAmount: c.approved_amount ? parseFloat(c.approved_amount) : undefined
         }));
         setUserRequests(mappedCir);
-        
-        // sync local state for offline capabilities
-        const allRequests: CashInRequest[] = JSON.parse(localStorage.getItem('cashInRequests') || '[]');
-        const filteredAll = allRequests.filter(r => r.username !== currentUser);
-        localStorage.setItem('cashInRequests', JSON.stringify([...filteredAll, ...mappedCir]));
-      } else {
-        const allRequests: CashInRequest[] = JSON.parse(localStorage.getItem('cashInRequests') || '[]');
-        setUserRequests(allRequests.filter(r => r.username === currentUser));
       }
 
       // 2. User purchased device license keys
       const { data: keys, error: errKeys } = await supabase.from('portal_keys').select('*').eq('username', currentUser).order('date', { ascending: false });
-      if (!errKeys && keys && keys.length > 0) {
+      if (!errKeys && keys) {
         const mappedKeys = keys.map((p: any) => ({ code: p.portal_key, serial: p.serial_number, date: p.date }));
         setUserPortalKeys(mappedKeys);
-
-        const portalKeysObj = JSON.parse(localStorage.getItem('portalKeys') || '{}');
-        portalKeysObj[currentUser] = mappedKeys;
-        localStorage.setItem('portalKeys', JSON.stringify(portalKeysObj));
-      } else {
-        const portalKeysObj = JSON.parse(localStorage.getItem('portalKeys') || '{}');
-        setUserPortalKeys(portalKeysObj[currentUser] || []);
       }
 
       // 3. User promo pricing checkout logs
       const { data: promos, error: errProms } = await supabase.from('promo_history').select('*').eq('username', currentUser).order('date', { ascending: false });
-      if (!errProms && promos && promos.length > 0) {
+      if (!errProms && promos) {
         const mappedProms: PromoHistoryItem[] = promos.map((p: any) => ({
           username: p.username,
           price: parseFloat(p.price) || 0,
           date: p.date
         }));
         setUserPromoHistory(mappedProms);
-
-        const allPromoHistory: PromoHistoryItem[] = JSON.parse(localStorage.getItem('promoHistory') || '[]');
-        const filteredProms = allPromoHistory.filter(h => h.username !== currentUser);
-        localStorage.setItem('promoHistory', JSON.stringify([...filteredProms, ...mappedProms]));
-      } else {
-        const allPromoHistory: PromoHistoryItem[] = JSON.parse(localStorage.getItem('promoHistory') || '[]');
-        setUserPromoHistory(allPromoHistory.filter(h => h.username === currentUser));
       }
 
     } catch (e) {
       console.warn('Bypassing online fetch lists for operator:', e);
-      // local offline loaders fallback
-      const allRequests: CashInRequest[] = JSON.parse(localStorage.getItem('cashInRequests') || '[]');
-      setUserRequests(allRequests.filter(r => r.username === currentUser));
-
-      const portalKeysObj = JSON.parse(localStorage.getItem('portalKeys') || '{}');
-      setUserPortalKeys(portalKeysObj[currentUser] || []);
-
-      const allPromoHistory: PromoHistoryItem[] = JSON.parse(localStorage.getItem('promoHistory') || '[]');
-      setUserPromoHistory(allPromoHistory.filter(h => h.username === currentUser));
     }
   };
 
   const handleToggleCard = (cardKey: string, currentVal: boolean, setValFn: (v: boolean) => void) => {
     const newVal = !currentVal;
     setValFn(newVal);
-    localStorage.setItem(`card_${cardKey}_${currentUser}`, newVal ? 'shown' : 'hidden');
   };
 
   const handleActivateGeneratorClick = async () => {
-    const freshPromoPrice = parseInt(localStorage.getItem('promoPrice') || '30');
-    setPromoPrice(freshPromoPrice);
+    const freshPromoPrice = promoPrice;
     
     // We try to pull live profile info first to have the latest balance
     let freshBalance = balance;
@@ -393,7 +330,6 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
       );
       // Automatically expand and show Cash-In card and form so they can top up!
       setShowCashIn(true);
-      localStorage.setItem(`card_cash_${currentUser}`, 'shown');
       
       // Smooth scroll to Cash-In section
       setTimeout(() => {
@@ -474,20 +410,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
       // We'll still continue since we have local storage fallback
     }
 
-    // Local state side-effects
-    const users = JSON.parse(localStorage.getItem('users') || '{}');
-    const uData = users[currentUser] || { password: '', expiration: '', balance: 0 };
-    users[currentUser] = {
-      ...uData,
-      balance: finalBalance,
-      expiration: newExpStr
-    };
-    localStorage.setItem('users', JSON.stringify(users));
-    localStorage.setItem(`account_locked_${currentUser}`, 'false');
 
-    const allPromoHistory = JSON.parse(localStorage.getItem('promoHistory') || '[]');
-    allPromoHistory.push({ username: currentUser, price: finalPromoPrice, date: new Date().toISOString() });
-    localStorage.setItem('promoHistory', JSON.stringify(allPromoHistory));
 
     ActivityLogger.logActivity('promo_purchased', `Purchased 1-Month generator license activation`, { price: finalPromoPrice });
     
@@ -562,17 +485,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
       return;
     }
 
-    // 2. Local fallback sync
-    const allRequests = JSON.parse(localStorage.getItem('cashInRequests') || '[]');
-    const newRequest: CashInRequest = {
-      username: currentUser,
-      refNumber: ref,
-      amount: cashInAmount,
-      status: 'pending',
-      date: new Date().toISOString()
-    };
-    allRequests.push(newRequest);
-    localStorage.setItem('cashInRequests', JSON.stringify(allRequests));
+
 
      // Send Telegram Notification
      await sendTelegramNotification(currentUser, ref, cashInAmount);
@@ -585,8 +498,17 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
   };
 
     const sendTelegramNotification = async (uName: string, ref: string, amt: number) => {
-        const token = localStorage.getItem('telegramBotToken');
-        const chat = localStorage.getItem('telegramChatId');
+        let token = '';
+        let chat = '';
+        try {
+          const { data: settings } = await supabase.from('global_settings').select('*');
+          if (settings) {
+            settings.forEach((s: any) => {
+              if (s.key === 'telegram_bot_token') token = s.value;
+              if (s.key === 'telegram_chat_id') chat = s.value;
+            });
+          }
+        } catch(e) {}
         
         if (!token || !chat) {
             console.warn('Telegram credentials not configured');
@@ -627,12 +549,20 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
 
   // Buy Activation Key (PortalKey)
   const handleBuyPortalKey = async () => {
-    // Dynamic settings retrieve
-    let finalKeyPrice = portalKeyPrice;
+    // Determine the price dynamically based on first-time or subsequent purchases
+    let finalKeyPrice = portalKeyFirstPrice;
     try {
-      const { data } = await supabase.from('global_settings').select('value').eq('key', 'portal_key_price').single();
-      if (data && data.value) finalKeyPrice = parseInt(data.value) || portalKeyPrice;
-    } catch (e) {}
+      const { data: keys, error } = await supabase.from('portal_keys').select('id').eq('username', currentUser);
+      if (!error && keys && keys.length > 0) {
+        finalKeyPrice = portalKeySubsequentPrice;
+      } else {
+        const hasLicense = userPortalKeys && userPortalKeys.length > 0;
+        finalKeyPrice = hasLicense ? portalKeySubsequentPrice : portalKeyFirstPrice;
+      }
+    } catch (e) {
+      const hasLicense = userPortalKeys && userPortalKeys.length > 0;
+      finalKeyPrice = hasLicense ? portalKeySubsequentPrice : portalKeyFirstPrice;
+    }
 
     setPortalKeyError('');
     setPortalKeySuccess('');
@@ -704,39 +634,10 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
        // We'll still continue since we have local storage fallback
      }
 
-    // 3. Keep local fallback in sync
-    const users = JSON.parse(localStorage.getItem('users') || '{}');
-    const uData = users[currentUser] || { password: '', expiration: '', balance: 0 };
-    users[currentUser] = {
-      ...uData,
-      balance: finalBalance
-    };
-    localStorage.setItem('users', JSON.stringify(users));
-
-    const portalKeysObj = JSON.parse(localStorage.getItem('portalKeys') || '{}');
-    if (!portalKeysObj[currentUser]) {
-      portalKeysObj[currentUser] = [];
-    }
-    const newKeyRecord = { code: portalKey, serial: serialVal, date: new Date().toISOString() };
-    portalKeysObj[currentUser].push(newKeyRecord);
-    localStorage.setItem('portalKeys', JSON.stringify(portalKeysObj));
-
-    const allRequests = JSON.parse(localStorage.getItem('portalKeyRequests') || '[]');
-    allRequests.push({
-      username: currentUser,
-      serialNumber: serialVal,
-      portalKey: portalKey,
-      status: 'approved',
-      date: new Date().toISOString()
-    });
-    localStorage.setItem('portalKeyRequests', JSON.stringify(allRequests));
-
-    ActivityLogger.logActivity('portalkey_purchased', `Purchased active Activation Key for MikroTik Serial ${serialVal}`, { serialNumber: serialVal, key: portalKey });
+    ActivityLogger.logActivity('portalkey_purchased', `Purchased active Activation Key (charged PHP ${finalKeyPrice}) for MikroTik Serial ${serialVal}`, { serialNumber: serialVal, key: portalKey, chargedAmount: finalKeyPrice });
 
     // Instantly update states to reflect generated key on UI
-    setUserPortalKeys(portalKeysObj[currentUser]);
     setShowPortalKeys(true);
-    localStorage.setItem(`card_port_${currentUser}`, 'shown');
 
     setPortalKeySuccess('Billing transaction approved! Your active Routerboard PortalKey code is ready.');
     await showAlert('Success', 'Billing transaction approved! Your active Routerboard PortalKey code is ready.');
@@ -1106,7 +1007,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
               </h2>
               <p className="text-xs text-slate-400 mt-1 max-w-xl">
                 {isExpired 
-                  ? `Your 1-Month Voucher generator sub rental expired on [${expiration}]. Renew today to continue printing codes.`
+                  ? `Your 1-Month Voucher generator sub rental expired on [${expiration ? expiration.split('T')[0] : ''}]. Renew today to continue printing codes.`
                   : 'Your account is currently inactive on the code printing pool. Purchase a 1-Month generator lease below.'
                 }
               </p>
@@ -1134,7 +1035,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
               </span>
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Authorized rent session valid until <strong className="text-slate-250 font-mono text-[11px] bg-slate-950/50 p-1 py-0.5 rounded border border-slate-855 ml-1">{expiration}</strong>
+              Authorized rent session valid until <strong className="text-slate-250 font-mono text-[11px] bg-slate-950/50 p-1 py-0.5 rounded border border-slate-855 ml-1">{expiration ? expiration.split('T')[0] : ''}</strong>
             </p>
           </div>
         </div>
@@ -1311,14 +1212,32 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs uppercase tracking-widest text-[#aaa] font-bold">PortalKey</span>
-                <span className="text-xs bg-slate-800 px-2 py-0.5 rounded text-indigo-400 font-mono">
-                  PHP {portalKeyPrice}
-                </span>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="text-xs bg-slate-800 px-2 py-0.5 rounded text-indigo-400 font-mono font-bold">
+                    PHP {userPortalKeys.length === 0 ? portalKeyFirstPrice : portalKeySubsequentPrice}
+                  </span>
+                  <span className="text-[10px] text-emerald-400/90 font-medium tracking-wide">
+                    {userPortalKeys.length === 0 ? 'First-time Purchase' : 'Renewal Promo Price'}
+                  </span>
+                </div>
               </div>
               <h3 className="font-bold text-sm text-slate-200">𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟒.𝟒 (𝟏𝟔.𝟔𝐤𝐛)</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
                 “𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟔𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”
               </p>
+              <div className="pt-1.5 flex flex-wrap gap-2">
+                <a
+                  href={juanfiLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  referrerPolicy="no-referrer"
+                  className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 hover:text-emerald-300 font-bold transition-all bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20 shadow-sm"
+                  id="portal-download-link"
+                >
+                  <Download className="w-3.5 h-3.5 animate-pulse" />
+                  Download Enhanced JuanFi Portal
+                </a>
+              </div>
             </div>
 
             <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-col gap-2">

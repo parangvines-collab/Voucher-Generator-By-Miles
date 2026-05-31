@@ -34,11 +34,6 @@ export function ActivitiesScreen() {
         console.warn('Could not delete log from Supabase:', error.message);
       }
       
-      // 2. Fallback to delete from local backup
-      const logs = ActivityLogger.getActivities();
-      const filtered = logs.filter((l) => l.id !== id);
-      localStorage.setItem('voucherActivities', JSON.stringify(filtered));
-      
       await loadActivities();
     } catch (e) {
       console.error(e);
