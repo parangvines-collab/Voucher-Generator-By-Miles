@@ -21,6 +21,8 @@ export function AdminManagerScreen() {
   const [portalKeyFirstPrice, setPortalKeyFirstPrice] = useState(300);
   const [portalKeySubsequentPrice, setPortalKeySubsequentPrice] = useState(150);
   const [juanfiLink, setJuanfiLink] = useState('https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link');
+  const [juanfiTitle, setJuanfiTitle] = useState('𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟒.𝟒 (𝟏𝟔.𝟔𝐤𝐛)');
+  const [juanfiDescription, setJuanfiDescription] = useState('“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟔𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”');
 
   // Telegram
   const [telegramBotToken, setTelegramBotToken] = useState('');
@@ -157,6 +159,8 @@ export function AdminManagerScreen() {
       let sbPortalKeyFirstPrice = 300;
       let sbPortalKeySubsequentPrice = 150;
       let sbJuanfiLink = 'https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link';
+      let sbJuanfiTitle = '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟒.𝟒 (𝟏𝟔.𝟔𝐤𝐛)';
+      let sbJuanfiDesc = '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟔𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
       let sbBotToken = '';
       let sbChatId = '';
 
@@ -170,6 +174,8 @@ export function AdminManagerScreen() {
           if (s.key === 'telegram_bot_token') sbBotToken = s.value;
           if (s.key === 'telegram_chat_id') sbChatId = s.value;
           if (s.key === 'juanfi_link') sbJuanfiLink = s.value || 'https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link';
+          if (s.key === 'juanfi_title') sbJuanfiTitle = s.value || '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟒.𝟒 (𝟏𝟔.𝟔𝐤𝐛)';
+          if (s.key === 'juanfi_description') sbJuanfiDesc = s.value || '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟔𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
         });
       }
       setAdminPassword(sbAdminPass);
@@ -178,6 +184,8 @@ export function AdminManagerScreen() {
       setPortalKeyFirstPrice(sbPortalKeyFirstPrice);
       setPortalKeySubsequentPrice(sbPortalKeySubsequentPrice);
       setJuanfiLink(sbJuanfiLink);
+      setJuanfiTitle(sbJuanfiTitle);
+      setJuanfiDescription(sbJuanfiDesc);
       setTelegramBotToken(sbBotToken);
       setTelegramChatId(sbChatId);
 
@@ -443,10 +451,10 @@ export function AdminManagerScreen() {
 
   const handleEditJuanfiLink = async () => {
     const val = await showPrompt(
-      'Modify Portal Download Link',
-      'Enter the new Google Drive or download URL for the Enhanced JuanFi Portal file:',
-      juanfiLink,
-      'https://drive.google.com/...'
+       'Modify Portal Download Link',
+       'Enter the new Google Drive or download URL for the Enhanced JuanFi Portal file:',
+       juanfiLink,
+       'https://drive.google.com/...'
     );
     if (val === null) return;
     const urlTrimmed = val.trim();
@@ -460,6 +468,50 @@ export function AdminManagerScreen() {
     } catch (e) {}
 
     ActivityLogger.logActivity('setting_changed', `Changed JuanFi Portal download link to: ${urlTrimmed}`);
+    loadAllData();
+  };
+
+  const handleEditJuanfiTitle = async () => {
+    const val = await showPrompt(
+      'Modify JuanFi Portal Title',
+      'Enter the new display title for the JuanFi Portal:',
+      juanfiTitle,
+      'e.g. 𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟒.𝟒 (𝟏𝟔.𝟔𝐤𝐛)'
+    );
+    if (val === null) return;
+    const titleTrimmed = val.trim();
+    if (!titleTrimmed) {
+      await showAlert('Invalid Title', 'Title cannot be empty.');
+      return;
+    }
+
+    try {
+      await supabase.from('global_settings').upsert([{ key: 'juanfi_title', value: titleTrimmed }]);
+    } catch (e) {}
+
+    ActivityLogger.logActivity('setting_changed', `Changed JuanFi Portal title to: ${titleTrimmed}`);
+    loadAllData();
+  };
+
+  const handleEditJuanfiDesc = async () => {
+    const val = await showPrompt(
+      'Modify JuanFi Portal Description',
+      'Enter the new slogan/description text for the JuanFi Portal:',
+      juanfiDescription,
+      'e.g. “𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨н𝐥𝐲 𝟏𝟔.𝟔𝐤𝐛”'
+    );
+    if (val === null) return;
+    const descTrimmed = val.trim();
+    if (!descTrimmed) {
+      await showAlert('Invalid Description', 'Description cannot be empty.');
+      return;
+    }
+
+    try {
+      await supabase.from('global_settings').upsert([{ key: 'juanfi_description', value: descTrimmed }]);
+    } catch (e) {}
+
+    ActivityLogger.logActivity('setting_changed', `Changed JuanFi Portal description to: ${descTrimmed}`);
     loadAllData();
   };
 
@@ -814,21 +866,57 @@ export function AdminManagerScreen() {
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between shadow-lg">
-          <div>
-            <span className="block text-xs uppercase tracking-widest text-slate-400 font-bold mb-1">JuanFi Portal Link</span>
-            <span className="text-sm font-bold text-emerald-400 truncate max-w-[140px] block" title={juanfiLink}>
-              {juanfiLink ? juanfiLink.substring(0, 22) + (juanfiLink.length > 22 ? '...' : '') : 'Not Configured'}
-            </span>
-            <button 
-              onClick={handleEditJuanfiLink}
-              className="block text-[11px] text-blue-400 hover:text-blue-300 hover:underline mt-1 focus:outline-none"
-            >
-              Update download URL
-            </button>
+        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex flex-col justify-between shadow-lg space-y-3.5">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="block text-xs uppercase tracking-widest text-slate-400 font-bold">JuanFi Portal Customizer</span>
+            </div>
+            <div className="w-9 h-9 bg-emerald-500/10 text-emerald-400 rounded-lg flex items-center justify-center border border-emerald-500/20 shadow-inner">
+              <Link className="w-4 h-4" />
+            </div>
           </div>
-          <div className="w-12 h-12 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center border border-emerald-500/20 shadow-inner">
-            <Link className="w-5 h-5" />
+          
+          <div className="space-y-2.5 text-xs">
+            <div className="border-t border-slate-800/60 pt-2">
+              <span className="text-slate-450 block font-semibold mb-0.5 text-[10px] uppercase tracking-wider">Title Text:</span>
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-slate-200 font-bold break-all leading-normal">{juanfiTitle}</span>
+                <button 
+                  onClick={handleEditJuanfiTitle}
+                  className="text-[10px] text-indigo-450 hover:text-indigo-405 hover:underline font-bold focus:outline-none shrink-0"
+                >
+                  Edit
+                </button>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-800/60 pt-2">
+              <span className="text-slate-450 block font-semibold mb-0.5 text-[10px] uppercase tracking-wider">Description String:</span>
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-slate-350 italic break-all leading-normal">{juanfiDescription}</span>
+                <button 
+                  onClick={handleEditJuanfiDesc}
+                  className="text-[10px] text-indigo-450 hover:text-indigo-405 hover:underline font-bold focus:outline-none shrink-0"
+                >
+                  Edit
+                </button>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-800/60 pt-2">
+              <span className="text-slate-450 block font-semibold mb-0.5 text-[10px] uppercase tracking-wider">Download URL Link:</span>
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-emerald-400 font-mono break-all leading-normal" title={juanfiLink}>
+                  {juanfiLink}
+                </span>
+                <button 
+                  onClick={handleEditJuanfiLink}
+                  className="text-[10px] text-indigo-450 hover:text-indigo-405 hover:underline font-bold focus:outline-none shrink-0"
+                >
+                  Edit
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
