@@ -13,7 +13,7 @@ import { Voucher, VoucherTemplate, CashInRequest, PortalKeyRecord, PromoHistoryI
 import { VoucherCardList } from './VoucherCardList';
 import { 
   PiggyBank, ArrowDownCircle, BadgeAlert, KeyRound, Ticket, 
-  Layers, Settings2, ShieldCheck, Download, Code, FileText, ClipboardCopy, Copy, Check, RefreshCw
+  Layers, Settings2, ShieldCheck, Download, Code, FileText, ClipboardCopy, Copy, Check, RefreshCw, Lock
 } from 'lucide-react';
 
 interface DashboardScreenProps {
@@ -1234,17 +1234,28 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
                 {juanfiDescription}
               </p>
               <div className="pt-1.5 flex flex-wrap gap-2">
-                <a
-                  href={juanfiLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  referrerPolicy="no-referrer"
-                  className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 hover:text-emerald-300 font-bold transition-all bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20 shadow-sm"
-                  id="portal-download-link"
-                >
-                  <Download className="w-3.5 h-3.5 animate-pulse" />
-                  Download Enhanced JuanFi Portal
-                </a>
+                {userPortalKeys.length > 0 ? (
+                  <a
+                    href={juanfiLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    referrerPolicy="no-referrer"
+                    className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 hover:text-emerald-300 font-bold transition-all bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20 shadow-sm"
+                    id="portal-download-link"
+                  >
+                    <Download className="w-3.5 h-3.5 animate-pulse" />
+                    Download Enhanced JuanFi Portal
+                  </a>
+                ) : (
+                  <button
+                    onClick={() => showAlert('Download Locked', 'You must purchase an Activation Key (PortalKey) first to unlock and download this file.')}
+                    className="inline-flex items-center gap-1.5 text-[11px] text-slate-500 bg-slate-950/40 px-2.5 py-1 rounded-lg border border-slate-800/80 font-bold cursor-pointer hover:bg-slate-900/60 hover:text-slate-400 transition-all"
+                    id="portal-download-link"
+                  >
+                    <Lock className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                    Download Locked (Requires PortalKey)
+                  </button>
+                )}
               </div>
             </div>
 
