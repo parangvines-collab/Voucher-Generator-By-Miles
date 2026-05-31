@@ -721,7 +721,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
     ActivityLogger.logActivity('voucher_exported', `Downloaded RSC router terminal script matching ${generatedVouchers.length} codes`, { format: 'RSC' });
     await showAlert(
       'Script Generated',
-      `Script generated successfully! Drop "${fileName}" inside the Files section inside Winbox terminal. Run import using "/import file-name=${fileName}".`
+      `Script generated successfully! Copy and paste this script into your MikroTik terminal.`
     );
   };
 
