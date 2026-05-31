@@ -1,0 +1,1687 @@
+import React, { useState, useEffect } from 'react';
+import { jsPDF } from 'jspdf';
+import { supabase } from '../supabaseClient';
+import { 
+  generateVoucherCode, 
+  generateMikroTikScript, 
+  exportToCSVContent, 
+  generatePortalKeyFromSerial,
+  formatTimeForDisplay
+} from '../utils/voucherHelpers';
+import { ActivityLogger } from '../utils/activityDB';
+import { Voucher, VoucherTemplate, CashInRequest, PortalKeyRecord, PromoHistoryItem } from '../types';
+import { VoucherCardList } from './VoucherCardList';
+import { 
+  PiggyBank, ArrowDownCircle, BadgeAlert, KeyRound, Ticket, 
+  Layers, Settings2, ShieldCheck, Download, Code, FileText, ClipboardCopy, Copy, Check, RefreshCw
+} from 'lucide-react';
+
+interface DashboardScreenProps {
+  currentUser: string;
+  onUpdateBalance?: () => void;
+}
+
+export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScreenProps) {
+  // User balance states
+  const [balance, setBalance] = useState(0);
+  const [expiration, setExpiration] = useState('');
+  const [isAccessGranted, setIsAccessGranted] = useState(false);
+  const [isExpired, setIsExpired] = useState(false);
+  const [remainingDays, setRemainingDays] = useState(0);
+
+  // Cards show/hide states
+  const [showPromo, setShowPromo] = useState(false);
+  const [showCashIn, setShowCashIn] = useState(false);
+  const [showPortalKeys, setShowPortalKeys] = useState(false);
+
+  // Pricing
+  const [promoPrice, setPromoPrice] = useState(30);
+  const [portalKeyPrice, setPortalKeyPrice] = useState(50);
+
+  // Submissions
+  const [cashInRef, setCashInRef] = useState('');
+  const [cashInAmount, setCashInAmount] = useState(30);
+  const [cashInSuccess, setCashInSuccess] = useState('');
+  const [cashInError, setCashInError] = useState('');
+
+  // PortalKey Buy states
+  const [portalKeySerial, setPortalKeySerial] = useState('');
+  const [portalKeySuccess, setPortalKeySuccess] = useState('');
+  const [portalKeyError, setPortalKeyError] = useState('');
+
+  // Lists corresponding specifically to the logged-in user
+  const [userRequests, setUserRequests] = useState<CashInRequest[]>([]);
+  const [userPortalKeys, setUserPortalKeys] = useState<PortalKeyRecord[]>([]);
+  const [userPromoHistory, setUserPromoHistory] = useState<PromoHistoryItem[]>([]);
+
+  // Generator Form Specs
+  const [prefix, setPrefix] = useState('VC');
+  const [charLength, setCharLength] = useState(6);
+  const [voucherAmount, setVoucherAmount] = useState(5);
+  const [quantity, setQuantity] = useState(5);
+  const [timeMinutes, setTimeMinutes] = useState(60);
+  const [validityMinutes, setValidityMinutes] = useState(60);
+  const [userProfile, setUserProfile] = useState('');
+  const [template, setTemplate] = useState<VoucherTemplate>('template1');
+  const [hotspotName, setHotspotName] = useState('MikroTik Hotspot');
+
+  // Generator output and notifications
+  const [generatedVouchers, setGeneratedVouchers] = useState<Voucher[]>([]);
+  const [isExportActive, setIsExportActive] = useState(false);
+  const [copiedCodesSuccess, setCopiedCodesSuccess] = useState(false);
+  const [copiedScriptSuccess, setCopiedScriptSuccess] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [formSuccess, setFormSuccess] = useState('');
+
+  // Dialog (Alert, Confirm, Prompt) custom state to bypass blocked native popups in sandbox iframes
+  const [dialog, setDialog] = useState<{
+    isOpen: boolean;
+    type: 'alert' | 'confirm' | 'prompt';
+    title: string;
+    message: string;
+    inputValue: string;
+    showInput: boolean;
+    inputPlaceholder: string;
+    confirmText: string;
+    cancelText: string;
+    onConfirm: (val: string) => void;
+    onCancel?: () => void;
+  }>({
+    isOpen: false,
+    type: 'alert',
+    title: '',
+    message: '',
+    inputValue: '',
+    showInput: false,
+    inputPlaceholder: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    onConfirm: () => {},
+  });
+
+  const showAlert = (title: string, message: string): Promise<void> => {
+    return new Promise((resolve) => {
+      setDialog({
+        isOpen: true,
+        type: 'alert',
+        title,
+        message,
+        inputValue: '',
+        showInput: false,
+        inputPlaceholder: '',
+        confirmText: 'OK',
+        cancelText: '',
+        onConfirm: () => {
+          setDialog(prev => ({ ...prev, isOpen: false }));
+          resolve();
+        }
+      });
+    });
+  };
+
+  const showConfirm = (title: string, message: string, confirmText = 'Confirm', cancelText = 'Cancel'): Promise<boolean> => {
+    return new Promise((resolve) => {
+      setDialog({
+        isOpen: true,
+        type: 'confirm',
+        title,
+        message,
+        inputValue: '',
+        showInput: false,
+        inputPlaceholder: '',
+        confirmText,
+        cancelText,
+        onConfirm: () => {
+          setDialog(prev => ({ ...prev, isOpen: false }));
+          resolve(true);
+        },
+        onCancel: () => {
+          setDialog(prev => ({ ...prev, isOpen: false }));
+          resolve(false);
+        }
+      });
+    });
+  };
+
+  const showPrompt = (title: string, message: string, defaultValue = '', placeholder = '', confirmText = 'Save', cancelText = 'Cancel'): Promise<string | null> => {
+    return new Promise((resolve) => {
+      setDialog({
+        isOpen: true,
+        type: 'prompt',
+        title,
+        message,
+        inputValue: defaultValue,
+        showInput: true,
+        inputPlaceholder: placeholder,
+        confirmText,
+        cancelText,
+        onConfirm: (val) => {
+          setDialog(prev => ({ ...prev, isOpen: false }));
+          resolve(val);
+        },
+        onCancel: () => {
+          setDialog(prev => ({ ...prev, isOpen: false }));
+          resolve(null);
+        }
+      });
+    });
+  };
+
+  // Setup mount load and refresh polling
+  useEffect(() => {
+    loadUserMetadata();
+    // Cache toggle panels from localStorage standard choices
+    setShowPromo(localStorage.getItem(`card_promo_${currentUser}`) === 'shown');
+    setShowCashIn(localStorage.getItem(`card_cash_${currentUser}`) === 'shown');
+    setShowPortalKeys(localStorage.getItem(`card_port_${currentUser}`) === 'shown');
+
+    // Interval to dynamically poll user status and GCash tickets
+    const interval = setInterval(() => {
+      loadUserMetadata();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
+  const loadUserMetadata = async () => {
+    const users = JSON.parse(localStorage.getItem('users') || '{}');
+    const adminPass = localStorage.getItem('adminPassword') || 'Anonymous#8856';
+    
+    // Set prices
+    let fbPromoPrice = parseInt(localStorage.getItem('promoPrice') || '30');
+    let fbPortalKeyPrice = parseInt(localStorage.getItem('portalKeyPrice') || '50');
+
+    try {
+      // 1. Fetch Global Setting Prices
+      const { data: globalSettings } = await supabase.from('global_settings').select('*');
+      if (globalSettings && globalSettings.length > 0) {
+        globalSettings.forEach((s: any) => {
+          if (s.key === 'promo_price') fbPromoPrice = parseInt(s.value) || fbPromoPrice;
+          if (s.key === 'portal_key_price') fbPortalKeyPrice = parseInt(s.value) || fbPortalKeyPrice;
+        });
+      }
+    } catch (e) {}
+
+    setPromoPrice(fbPromoPrice);
+    setPortalKeyPrice(fbPortalKeyPrice);
+    localStorage.setItem('promoPrice', String(fbPromoPrice));
+    localStorage.setItem('portalKeyPrice', String(fbPortalKeyPrice));
+
+    if (currentUser === 'admin') {
+      setIsAccessGranted(true);
+      setIsExpired(false);
+      setRemainingDays(999);
+      setBalance(99999);
+    } else {
+      // Operator load
+      let sbBalance = 0;
+      let sbExpiration = '';
+
+      try {
+        // Fetch real profile from Supabase
+        const { data: prof, error: errProf } = await supabase.from('profiles').select('*').eq('username', currentUser).single();
+        if (!errProf && prof) {
+          sbBalance = parseFloat(prof.balance) || 0;
+          sbExpiration = prof.expiration || '';
+        } else {
+          // Fallback or lazy create if profile doesn't exist
+          const uData = users[currentUser] || { password: '', expiration: '', balance: 0 };
+          sbBalance = uData.balance || 0;
+          sbExpiration = uData.expiration || '';
+
+          // Upsert to Supabase to establish database synchronization smoothly
+          const { data: sData } = await supabase.auth.getSession();
+          if (sData && sData.session) {
+            await supabase.from('profiles').upsert([{
+              id: sData.session.user.id,
+              username: currentUser,
+              balance: sbBalance,
+              expiration: sbExpiration || null
+            }]);
+          }
+        }
+      } catch (err) {
+        const uData = users[currentUser] || { password: '', expiration: '', balance: 0 };
+        sbBalance = uData.balance || 0;
+        sbExpiration = uData.expiration || '';
+      }
+
+      setBalance(sbBalance);
+      setExpiration(sbExpiration);
+
+      // Mutate local storage operator state to match database
+      const uData = users[currentUser] || { password: '', expiration: '', balance: 0 };
+      users[currentUser] = {
+        ...uData,
+        balance: sbBalance,
+        expiration: sbExpiration
+      };
+      localStorage.setItem('users', JSON.stringify(users));
+
+      // Propagate the updated balance info back to main Header
+      onUpdateBalance?.();
+
+      if (!sbExpiration) {
+        setIsAccessGranted(false);
+        setIsExpired(false);
+      } else {
+        const expDate = new Date(sbExpiration);
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        
+        const previouslyLocked = localStorage.getItem(`account_locked_${currentUser}`) === 'true';
+
+        if (expDate < today || previouslyLocked) {
+          setIsExpired(true);
+          setIsAccessGranted(false);
+          localStorage.setItem(`account_locked_${currentUser}`, 'true');
+        } else {
+          setIsAccessGranted(true);
+          setIsExpired(false);
+          const diffTime = expDate.getTime() - today.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          setRemainingDays(diffDays);
+          localStorage.setItem(`account_locked_${currentUser}`, 'false');
+        }
+      }
+    }
+
+    // Load Lists specific to the operator
+    try {
+      // 1. User GCash cash-in requests
+      const { data: requests, error: errReq } = await supabase.from('cash_in_requests').select('*').eq('username', currentUser).order('date', { ascending: false });
+      if (!errReq && requests && requests.length > 0) {
+        const mappedCir: CashInRequest[] = requests.map((c: any) => ({
+          username: c.username,
+          refNumber: c.ref_number,
+          amount: parseFloat(c.amount) || 0,
+          status: c.status,
+          date: c.date,
+          approvedAmount: c.approved_amount ? parseFloat(c.approved_amount) : undefined
+        }));
+        setUserRequests(mappedCir);
+        
+        // sync local state for offline capabilities
+        const allRequests: CashInRequest[] = JSON.parse(localStorage.getItem('cashInRequests') || '[]');
+        const filteredAll = allRequests.filter(r => r.username !== currentUser);
+        localStorage.setItem('cashInRequests', JSON.stringify([...filteredAll, ...mappedCir]));
+      } else {
+        const allRequests: CashInRequest[] = JSON.parse(localStorage.getItem('cashInRequests') || '[]');
+        setUserRequests(allRequests.filter(r => r.username === currentUser));
+      }
+
+      // 2. User purchased device license keys
+      const { data: keys, error: errKeys } = await supabase.from('portal_keys').select('*').eq('username', currentUser).order('date', { ascending: false });
+      if (!errKeys && keys && keys.length > 0) {
+        const mappedKeys = keys.map((p: any) => ({ code: p.portal_key, serial: p.serial_number, date: p.date }));
+        setUserPortalKeys(mappedKeys);
+
+        const portalKeysObj = JSON.parse(localStorage.getItem('portalKeys') || '{}');
+        portalKeysObj[currentUser] = mappedKeys;
+        localStorage.setItem('portalKeys', JSON.stringify(portalKeysObj));
+      } else {
+        const portalKeysObj = JSON.parse(localStorage.getItem('portalKeys') || '{}');
+        setUserPortalKeys(portalKeysObj[currentUser] || []);
+      }
+
+      // 3. User promo pricing checkout logs
+      const { data: promos, error: errProms } = await supabase.from('promo_history').select('*').eq('username', currentUser).order('date', { ascending: false });
+      if (!errProms && promos && promos.length > 0) {
+        const mappedProms: PromoHistoryItem[] = promos.map((p: any) => ({
+          username: p.username,
+          price: parseFloat(p.price) || 0,
+          date: p.date
+        }));
+        setUserPromoHistory(mappedProms);
+
+        const allPromoHistory: PromoHistoryItem[] = JSON.parse(localStorage.getItem('promoHistory') || '[]');
+        const filteredProms = allPromoHistory.filter(h => h.username !== currentUser);
+        localStorage.setItem('promoHistory', JSON.stringify([...filteredProms, ...mappedProms]));
+      } else {
+        const allPromoHistory: PromoHistoryItem[] = JSON.parse(localStorage.getItem('promoHistory') || '[]');
+        setUserPromoHistory(allPromoHistory.filter(h => h.username === currentUser));
+      }
+
+    } catch (e) {
+      console.warn('Bypassing online fetch lists for operator:', e);
+      // local offline loaders fallback
+      const allRequests: CashInRequest[] = JSON.parse(localStorage.getItem('cashInRequests') || '[]');
+      setUserRequests(allRequests.filter(r => r.username === currentUser));
+
+      const portalKeysObj = JSON.parse(localStorage.getItem('portalKeys') || '{}');
+      setUserPortalKeys(portalKeysObj[currentUser] || []);
+
+      const allPromoHistory: PromoHistoryItem[] = JSON.parse(localStorage.getItem('promoHistory') || '[]');
+      setUserPromoHistory(allPromoHistory.filter(h => h.username === currentUser));
+    }
+  };
+
+  const handleToggleCard = (cardKey: string, currentVal: boolean, setValFn: (v: boolean) => void) => {
+    const newVal = !currentVal;
+    setValFn(newVal);
+    localStorage.setItem(`card_${cardKey}_${currentUser}`, newVal ? 'shown' : 'hidden');
+  };
+
+  const handleActivateGeneratorClick = async () => {
+    const freshPromoPrice = parseInt(localStorage.getItem('promoPrice') || '30');
+    setPromoPrice(freshPromoPrice);
+    
+    // We try to pull live profile info first to have the latest balance
+    let freshBalance = balance;
+    try {
+      const { data } = await supabase.from('profiles').select('balance').eq('username', currentUser).single();
+      if (data) {
+        freshBalance = parseFloat(data.balance) || 0;
+        setBalance(freshBalance);
+      }
+    } catch (er) {}
+
+    if (freshBalance >= freshPromoPrice) {
+      const confirmBuy = await showConfirm(
+        'Activate License',
+        `You currently have PHP ${freshBalance} balance available. Would you like to use PHP ${freshPromoPrice} to activate your 1-Month Voucher Generator license immediately?`,
+        'Yes, Activate',
+        'Cancel'
+      );
+      if (confirmBuy) {
+        await handleBuyPromo();
+      }
+    } else {
+      await showAlert(
+        'Insufficient Balance',
+        `Insufficient balance. You have PHP ${freshBalance} but require PHP ${freshPromoPrice} to buy 1-Month generator lease access.\n\nOpening the GCash Cash-In deposit block below so you can top up your operator account balance.`
+      );
+      // Automatically expand and show Cash-In card and form so they can top up!
+      setShowCashIn(true);
+      localStorage.setItem(`card_cash_${currentUser}`, 'shown');
+      
+      // Smooth scroll to Cash-In section
+      setTimeout(() => {
+        const cashInSection = document.getElementById('cash-in-card');
+        if (cashInSection) {
+          cashInSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    }
+  };
+
+  // Buy rent access (1 month)
+  const handleBuyPromo = async () => {
+    // Dynamic settings retrieve
+    let finalPromoPrice = promoPrice;
+    try {
+      const { data } = await supabase.from('global_settings').select('value').eq('key', 'promo_price').single();
+      if (data && data.value) finalPromoPrice = parseInt(data.value) || promoPrice;
+    } catch (e) {}
+
+    // 1. Subtract balance in Supabase profiles
+    let targetProfileId = null;
+    let oldBalance = balance;
+    let oldExpiration = expiration;
+    try {
+      const { data: prof, error } = await supabase.from('profiles').select('id, balance, expiration').eq('username', currentUser).single();
+      if (!error && prof) {
+        targetProfileId = prof.id;
+        oldBalance = parseFloat(prof.balance) || 0;
+        oldExpiration = prof.expiration || '';
+      }
+    } catch (e) {
+      console.error('Failed to fetch profile for promo purchase:', e);
+    }
+
+    if (oldBalance < finalPromoPrice) {
+      await showAlert(
+        'Insufficient Balance',
+        `Insufficient balance. You need ${finalPromoPrice} PHP to buy Voucher Generator access. Please cash-in to top up.`
+      );
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    let expDate = (oldExpiration && new Date(oldExpiration) >= today) ? new Date(oldExpiration) : new Date(today);
+    expDate.setMonth(expDate.getMonth() + 1);
+    const newExpStr = expDate.toISOString().split('T')[0];
+
+    const finalBalance = oldBalance - finalPromoPrice;
+
+    // 2. Perform updates inside profiles
+    if (targetProfileId) {
+      try {
+        await supabase.from('profiles').update({
+          balance: finalBalance,
+          expiration: newExpStr
+        }).eq('id', targetProfileId);
+      } catch (e) {
+        console.error('Failed to update profile after promo purchase:', e);
+        // We'll still continue since we have local storage fallback
+      }
+    }
+
+    // 3. Insert subscription history inside promo_history
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id || null;
+      await supabase.from('promo_history').insert([{
+        user_id: userId,
+        username: currentUser,
+        price: finalPromoPrice,
+        date: new Date().toISOString()
+      }]);
+    } catch (e) {
+      console.error('Failed to insert promo history into Supabase:', e);
+      // We'll still continue since we have local storage fallback
+    }
+
+    // Local state side-effects
+    const users = JSON.parse(localStorage.getItem('users') || '{}');
+    const uData = users[currentUser] || { password: '', expiration: '', balance: 0 };
+    users[currentUser] = {
+      ...uData,
+      balance: finalBalance,
+      expiration: newExpStr
+    };
+    localStorage.setItem('users', JSON.stringify(users));
+    localStorage.setItem(`account_locked_${currentUser}`, 'false');
+
+    const allPromoHistory = JSON.parse(localStorage.getItem('promoHistory') || '[]');
+    allPromoHistory.push({ username: currentUser, price: finalPromoPrice, date: new Date().toISOString() });
+    localStorage.setItem('promoHistory', JSON.stringify(allPromoHistory));
+
+    ActivityLogger.logActivity('promo_purchased', `Purchased 1-Month generator license activation`, { price: finalPromoPrice });
+    
+    await showAlert(
+      'Congratulations!',
+      'Rent access purchased successfully! 1 Month has been activated on your operator layout.'
+    );
+    
+    await loadUserMetadata();
+    onUpdateBalance?.();
+  };
+
+  // Cash In GCash
+  const handleCashInSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCashInSuccess('');
+    setCashInError('');
+
+    const ref = cashInRef.trim();
+    if (!ref) {
+      setCashInError('GCash Transaction ID is mandatory.');
+      return;
+    }
+
+    if (cashInAmount <= 0) {
+      setCashInError('Amount must be positive.');
+      return;
+    }
+
+    // Check unique reference locally/online to avoid duplicate submits
+    let isDuplicated = false;
+    try {
+      const { data, error: selectErr } = await supabase.from('cash_in_requests').select('ref_number').eq('ref_number', ref);
+      if (selectErr) {
+        console.error('Error checking duplicate cash-in reference:', selectErr);
+      }
+      if (data && data.length > 0) isDuplicated = true;
+    } catch (e) {
+      console.error('Exception checking duplicate:', e);
+    }
+
+    if (isDuplicated) {
+      setCashInError('GCash reference ID has already been logged.');
+      return;
+    }
+
+    // 1. Log request to database in cash_in_requests
+    let supabaseSuccess = false;
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id || null;
+      
+      const { error: insertErr } = await supabase.from('cash_in_requests').insert([{
+        user_id: userId,
+        username: currentUser,
+        ref_number: ref,
+        amount: cashInAmount,
+        status: 'pending',
+        date: new Date().toISOString()
+      }]);
+
+      if (insertErr) {
+        console.error('Supabase cash_in_requests insertion failed status info:', insertErr);
+        setCashInError(`Supabase Error: ${insertErr.message}. Ensure your database table 'cash_in_requests' exists and security rules permit insertions.`);
+        return;
+      } else {
+        supabaseSuccess = true;
+      }
+    } catch (er: any) {
+      console.error('Logging online cash-in request exception thrown:', er);
+      setCashInError(`Network Error: ${er.message || er}`);
+      return;
+    }
+
+    // 2. Local fallback sync
+    const allRequests = JSON.parse(localStorage.getItem('cashInRequests') || '[]');
+    const newRequest: CashInRequest = {
+      username: currentUser,
+      refNumber: ref,
+      amount: cashInAmount,
+      status: 'pending',
+      date: new Date().toISOString()
+    };
+    allRequests.push(newRequest);
+    localStorage.setItem('cashInRequests', JSON.stringify(allRequests));
+
+     // Send Telegram Notification
+     await sendTelegramNotification(currentUser, ref, cashInAmount);
+
+    ActivityLogger.logActivity('cash_in_requested', `Submitted billing deposit load ticket`, { refNumber: ref, amount: cashInAmount });
+
+    setCashInSuccess('Deposit ticket successfully logged! Pending admin validation details review.');
+    setCashInRef('');
+    await loadUserMetadata();
+  };
+
+    const sendTelegramNotification = async (uName: string, ref: string, amt: number) => {
+        const token = localStorage.getItem('telegramBotToken');
+        const chat = localStorage.getItem('telegramChatId');
+        
+        if (!token || !chat) {
+            console.warn('Telegram credentials not configured');
+            return;
+        }
+
+        const text = `🔔 Cash-In Request Submitted\nUser Operator: ${uName}\nGCash Ref: ${ref}\nAmount PHP: ${amt} pesos`;
+        const url = `https://api.telegram.org/bot${token}/sendMessage`;
+        
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    chat_id: chat,
+                    text: text,
+                    parse_mode: 'HTML'
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Telegram API error: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            if (!result.ok) {
+                throw new Error(`Telegram API error: ${result.description}`);
+            }
+            
+            console.log('Telegram notification sent successfully');
+        } catch (error) {
+            console.error('Failed to send Telegram notification:', error);
+            // Optionally, you could implement a retry mechanism here
+        }
+    };
+
+  // Buy Activation Key (PortalKey)
+  const handleBuyPortalKey = async () => {
+    // Dynamic settings retrieve
+    let finalKeyPrice = portalKeyPrice;
+    try {
+      const { data } = await supabase.from('global_settings').select('value').eq('key', 'portal_key_price').single();
+      if (data && data.value) finalKeyPrice = parseInt(data.value) || portalKeyPrice;
+    } catch (e) {}
+
+    setPortalKeyError('');
+    setPortalKeySuccess('');
+
+    // Fetch profile to verify and deduct balance
+    let targetProfileId = null;
+    let oldBalance = balance;
+    try {
+      const { data: prof, error } = await supabase.from('profiles').select('id, balance').eq('username', currentUser).single();
+      if (!error && prof) {
+        targetProfileId = prof.id;
+        oldBalance = parseFloat(prof.balance) || 0;
+      }
+    } catch (e) {}
+
+    if (oldBalance < finalKeyPrice) {
+      await showAlert(
+        'Insufficient Balance',
+        `Insufficient balance. You need PHP ${finalKeyPrice} available in your wallet. Please cash-in to top up.`
+      );
+      return;
+    }
+
+    const serialNum = await showPrompt(
+      'Activate PortalKey',
+      'Enter your MikroTik Device Serial Number (found in System -> Routerboard):',
+      '',
+      'MikroTik Serial'
+    );
+    if (serialNum === null) return;
+    if (serialNum.trim() === '') {
+      setPortalKeyError('Routerboard serial number has to be inputted.');
+      return;
+    }
+
+    const serialVal = serialNum.trim().toUpperCase();
+    const portalKey = generatePortalKeyFromSerial(serialVal);
+    if (!portalKey) {
+      setPortalKeyError('Invalid routerboard serial inputted.');
+      return;
+    }
+
+    const finalBalance = oldBalance - finalKeyPrice;
+
+     // 1. Charge balance in profiles
+     if (targetProfileId) {
+       try {
+         await supabase.from('profiles').update({ balance: finalBalance }).eq('id', targetProfileId);
+       } catch (e) {
+         console.error('Failed to update balance in profiles:', e);
+         // We'll still continue since we have local storage fallback
+       }
+     }
+
+     // 2. Log key key registry buy in portal_keys
+     try {
+       const { data: sessionData } = await supabase.auth.getSession();
+       const userId = sessionData?.session?.user?.id || null;
+       await supabase.from('portal_keys').insert([{
+         user_id: userId,
+         username: currentUser,
+         serial_number: serialVal,
+         portal_key: portalKey,
+         status: 'approved',
+         date: new Date().toISOString()
+       }]);
+     } catch (e) {
+       console.error('Failed to insert portal key into Supabase:', e);
+       // We'll still continue since we have local storage fallback
+     }
+
+    // 3. Keep local fallback in sync
+    const users = JSON.parse(localStorage.getItem('users') || '{}');
+    const uData = users[currentUser] || { password: '', expiration: '', balance: 0 };
+    users[currentUser] = {
+      ...uData,
+      balance: finalBalance
+    };
+    localStorage.setItem('users', JSON.stringify(users));
+
+    const portalKeysObj = JSON.parse(localStorage.getItem('portalKeys') || '{}');
+    if (!portalKeysObj[currentUser]) {
+      portalKeysObj[currentUser] = [];
+    }
+    const newKeyRecord = { code: portalKey, serial: serialVal, date: new Date().toISOString() };
+    portalKeysObj[currentUser].push(newKeyRecord);
+    localStorage.setItem('portalKeys', JSON.stringify(portalKeysObj));
+
+    const allRequests = JSON.parse(localStorage.getItem('portalKeyRequests') || '[]');
+    allRequests.push({
+      username: currentUser,
+      serialNumber: serialVal,
+      portalKey: portalKey,
+      status: 'approved',
+      date: new Date().toISOString()
+    });
+    localStorage.setItem('portalKeyRequests', JSON.stringify(allRequests));
+
+    ActivityLogger.logActivity('portalkey_purchased', `Purchased active Activation Key for MikroTik Serial ${serialVal}`, { serialNumber: serialVal, key: portalKey });
+
+    // Instantly update states to reflect generated key on UI
+    setUserPortalKeys(portalKeysObj[currentUser]);
+    setShowPortalKeys(true);
+    localStorage.setItem(`card_port_${currentUser}`, 'shown');
+
+    setPortalKeySuccess('Billing transaction approved! Your active Routerboard PortalKey code is ready.');
+    await showAlert('Success', 'Billing transaction approved! Your active Routerboard PortalKey code is ready.');
+    await loadUserMetadata();
+    onUpdateBalance?.();
+  };
+
+  const handleCopyNumber = async () => {
+    navigator.clipboard.writeText('09659067723').then(async () => {
+      await showAlert('Copied', 'Treasurer cell number 09659067723 copied to clipboard!');
+    });
+  };
+
+  // Voucher generation form submit
+  const handleGenerateVouchers = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError('');
+    setFormSuccess('');
+    setIsExportActive(false);
+
+    if (!isAccessGranted) {
+      setFormError('Your generator rent subscription is locked or expired. Buy access to unlock configuration pages.');
+      return;
+    }
+
+    const trimmedPrefix = prefix.replace(/\s+/g, '').toUpperCase();
+    if (!/^[A-Z0-9]{1,4}$/.test(trimmedPrefix)) {
+      setFormError('Voucher prefix has to be 1 to 4 alphanumeric characters only.');
+      return;
+    }
+
+    if (trimmedPrefix.length > charLength) {
+      setFormError('Prefix string cannot exceed overall total voucher character length selection.');
+      return;
+    }
+
+    try {
+      const arr: Voucher[] = [];
+      const localUsedCodes: Record<string, boolean> = {};
+
+      for (let i = 0; i < quantity; i++) {
+        const code = generateVoucherCode(trimmedPrefix, charLength, localUsedCodes);
+        localUsedCodes[code] = true; // Mark as generated in this batch to prevent duplicates
+        arr.push({
+          code,
+          amount: voucherAmount,
+          validity: validityMinutes,
+          time: timeMinutes,
+          profile: userProfile.trim()
+        });
+      }
+
+      setGeneratedVouchers(arr);
+      ActivityLogger.logActivity('voucher_generated', `Generated ${quantity} guest hotspot voucher(s) using template ${template}`, { count: quantity, prefix: trimmedPrefix });
+      
+      setFormSuccess(`${quantity} vouchers successfully computed and printed below! Logged on operations log.`);
+    } catch (err: any) {
+      setFormError(err.message || 'Error executing ticket computation loop.');
+    }
+  };
+
+  // Action: Export MikroTik RSC Script Download
+  const handleExportRSC = async () => {
+    const rscScript = generateMikroTikScript(generatedVouchers, hotspotName);
+    const suffix = new Date().getTime().toString().slice(-6);
+    const fileName = `vouchers-${suffix}.rsc`;
+
+    const blob = new Blob([rscScript], { type: 'text/plain;charset=utf-8' });
+    const downloadUrl = URL.createObjectURL(blob);
+    
+    const clickLink = document.createElement('a');
+    clickLink.href = downloadUrl;
+    clickLink.download = fileName;
+    clickLink.className = 'hidden';
+    document.body.appendChild(clickLink);
+    clickLink.click();
+    document.body.removeChild(clickLink);
+    URL.revokeObjectURL(downloadUrl);
+
+    setIsExportActive(true);
+    ActivityLogger.logActivity('voucher_exported', `Downloaded RSC router terminal script matching ${generatedVouchers.length} codes`, { format: 'RSC' });
+    await showAlert(
+      'Script Generated',
+      `Script generated successfully! Drop "${fileName}" inside the Files section inside Winbox terminal. Run import using "/import file-name=${fileName}".`
+    );
+  };
+
+  // Action: Export CSV Download
+  const handleExportCSV = () => {
+    const csvContent = exportToCSVContent(generatedVouchers);
+    const suffix = new Date().getTime().toString().slice(-6);
+    const fileName = `vouchers-${suffix}.csv`;
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+    const downloadUrl = URL.createObjectURL(blob);
+    
+    const clickLink = document.createElement('a');
+    clickLink.href = downloadUrl;
+    clickLink.download = fileName;
+    clickLink.className = 'hidden';
+    document.body.appendChild(clickLink);
+    clickLink.click();
+    document.body.removeChild(clickLink);
+    URL.revokeObjectURL(downloadUrl);
+
+    ActivityLogger.logActivity('voucher_exported', `Exported operator voucher table to Microsoft Excel compatible csv format`, { format: 'CSV' });
+  };
+
+  // Action: Copy all codes straight to layout clipboard
+  const handleCopyAllCodes = () => {
+    const arrayCodes = generatedVouchers.map(v => {
+      const timeStr = formatTimeForDisplay(v.time);
+      const valStr = formatTimeForDisplay(v.validity);
+      return `${v.code} - PHP ${v.amount} (Uptime: ${timeStr}, Valid: ${valStr}${v.profile ? `, Profile: ${v.profile}` : ''})`;
+    });
+
+    navigator.clipboard.writeText(arrayCodes.join('\n')).then(() => {
+      setCopiedCodesSuccess(true);
+      setTimeout(() => setCopiedCodesSuccess(false), 2500);
+      ActivityLogger.logActivity('voucher_exported', `Copied ${generatedVouchers.length} compiled tickets directly to clipboard`, { format: 'Clipboard' });
+    });
+  };
+
+  // Action: Copy the compiled MikroTik RSC script to clipboard
+  const handleCopyVoucherScript = () => {
+    const rscScript = generateMikroTikScript(generatedVouchers, hotspotName);
+    navigator.clipboard.writeText(rscScript).then(() => {
+      setCopiedScriptSuccess(true);
+      setTimeout(() => setCopiedScriptSuccess(false), 2500);
+      ActivityLogger.logActivity('voucher_exported', `Copied MikroTik RSC Script directly to clipboard`, { format: 'RSC_Inline' });
+    });
+  };
+
+  // Action: Native custom PDF generating with grid pages
+  const handleExportPDF = () => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    // Page specs - calculated to perfectly center 5x19 cards of 38mm x 14mm on A4 page
+    const itemWidth = 38;
+    const itemHeight = 14;
+    const gridGap = 1.0;
+    
+    const colsCount = 5;
+    const rowsCount = 19;
+    const batchPageLimit = colsCount * rowsCount;
+    const hasProfile = generatedVouchers.some(v => v.profile && v.profile.trim().length > 0);
+
+    const printMarginLeft = (210 - (colsCount * itemWidth + (colsCount - 1) * gridGap)) / 2; // ~8.0 mm
+    const printMarginTop = (297 - (rowsCount * itemHeight + (rowsCount - 1) * gridGap)) / 2; // ~6.5 mm
+
+    generatedVouchers.forEach((v, index) => {
+      if (index > 0 && index % batchPageLimit === 0) {
+        doc.addPage();
+      }
+
+      // Grids positioning coordinate index
+      const locInPage = index % batchPageLimit;
+      const rIdx = Math.floor(locInPage / colsCount);
+      const cIdx = locInPage % colsCount;
+
+      const x = printMarginLeft + cIdx * (itemWidth + gridGap);
+      const y = printMarginTop + rIdx * (itemHeight + gridGap);
+
+      // Template structural coloring choices representation
+      if (template === 'template2') {
+        // Modern Indigo / Cyan
+        doc.setDrawColor(99, 102, 241); // indigo-500
+        doc.setFillColor(248, 250, 255); // faint backing tint (indigo-50)
+        doc.roundedRect(x, y, itemWidth, itemHeight, 1.0, 1.0, 'FD');
+
+        // Vertical divider
+        doc.setLineWidth(0.08);
+        doc.setDrawColor(224, 231, 255); // Indigo-100 line
+        doc.line(x + 24.5, y + 1.2, x + 24.5, y + 12.8);
+        
+        // Left Column elements:
+        // Hotspot Name / Title (Left side)
+        doc.setTextColor(30, 41, 59); // slate-800
+        doc.setFont('Helvetica', 'bold');
+        const headerText = hotspotName.toUpperCase().trim();
+        let fs = 4.2;
+        doc.setFontSize(fs);
+        while (doc.getTextWidth(headerText) > 21.0 && fs > 1.2) {
+          fs -= 0.1;
+          doc.setFontSize(fs);
+        }
+        doc.text(headerText, x + 2.0, y + 2.6, { baseline: 'middle' });
+
+        // Code Background Capsule
+        doc.setFillColor(224, 231, 255); // indigo-100
+        doc.roundedRect(x + 2.0, y + 4.2, 21.0, 4.8, 0.6, 0.6, 'F');
+
+        // Core Code (Centered inside capsule)
+        doc.setTextColor(67, 56, 202); // indigo-700
+        doc.setFont('Courier', 'bold');
+        doc.setFontSize(10.0);
+        doc.text(v.code, x + 12.5, y + 6.8, { align: 'center', baseline: 'middle' });
+
+        // Profile / Bottom subtext
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(2.8);
+        if (hasProfile && v.profile) {
+          doc.setTextColor(124, 58, 237); // Purple for profile
+          doc.text(`Prof: ${v.profile.substring(0, 12)}`, x + 2.0, y + 11.2, { baseline: 'middle' });
+        }
+
+        // Right Column elements:
+        // Price Badge (Solid Indigo capsule)
+        doc.setFillColor(99, 102, 241); // indigo-500
+        doc.roundedRect(x + 25.4, y + 1.4, 11.0, 3.6, 0.6, 0.6, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(6.0);
+        doc.text(`P${v.amount}`, x + 31.0, y + 3.2, { align: 'center', baseline: 'middle' });
+
+        // TIME & VALIDITY
+        doc.setTextColor(71, 85, 105); // slate-600
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(2.8);
+        doc.text(`TIME: ${formatTimeForDisplay(v.time)}`, x + 25.2, y + 7.4, { baseline: 'middle' });
+        doc.text(`VALIDITY: ${formatTimeForDisplay(v.validity)}`, x + 25.2, y + 11.2, { baseline: 'middle' });
+
+      } else if (template === 'template3') {
+        // Classic Warm Parchment
+        doc.setDrawColor(139, 90, 43); // warm brown
+        doc.setFillColor(254, 252, 245); // vintage paper / bone cream
+        doc.roundedRect(x, y, itemWidth, itemHeight, 1.0, 1.0, 'FD');
+
+        // Vertical divider
+        doc.setLineWidth(0.08);
+        doc.setDrawColor(217, 190, 165); // Warm bronze line
+        doc.line(x + 24.5, y + 1.2, x + 24.5, y + 12.8);
+        
+        // Left Column elements:
+        // Hotspot Name / Title
+        doc.setTextColor(62, 39, 35); // dark espresso coffee
+        doc.setFont('Courier', 'bold');
+        const headerText = hotspotName.toUpperCase().trim();
+        let fs = 4.2;
+        doc.setFontSize(fs);
+        while (doc.getTextWidth(headerText) > 21.0 && fs > 1.2) {
+          fs -= 0.1;
+          doc.setFontSize(fs);
+        }
+        doc.text(headerText, x + 2.0, y + 2.6, { baseline: 'middle' });
+
+        // Code Background Capsule
+        doc.setFillColor(243, 227, 205); // parchment gold-tan background
+        doc.roundedRect(x + 2.0, y + 4.2, 21.0, 4.8, 0.6, 0.6, 'F');
+
+        // Core Code
+        doc.setTextColor(178, 34, 34); // firebrick red
+        doc.setFont('Courier', 'bold');
+        doc.setFontSize(10.0);
+        doc.text(v.code, x + 12.5, y + 6.8, { align: 'center', baseline: 'middle' });
+
+        // Profile / Bottom subtext
+        doc.setFont('Courier', 'bold');
+        doc.setFontSize(2.8);
+        if (hasProfile && v.profile) {
+          doc.setTextColor(180, 83, 9); // Warm amber profile
+          doc.text(`Prof: ${v.profile.substring(0, 12)}`, x + 2.0, y + 11.2, { baseline: 'middle' });
+        }
+
+        // Right Column elements:
+        // Price Badge
+        doc.setFillColor(139, 90, 43); // warm brown
+        doc.roundedRect(x + 25.4, y + 1.4, 11.0, 3.6, 0.6, 0.6, 'F');
+
+        doc.setTextColor(251, 241, 199); // parchment white-cream
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(6.0);
+        doc.text(`P${v.amount}`, x + 31.0, y + 3.2, { align: 'center', baseline: 'middle' });
+
+        // TIME & VALIDITY
+        doc.setTextColor(93, 64, 55); // mocha brown
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(2.8);
+        doc.text(`TIME: ${formatTimeForDisplay(v.time)}`, x + 25.2, y + 7.4, { baseline: 'middle' });
+        doc.text(`VALIDITY: ${formatTimeForDisplay(v.validity)}`, x + 25.2, y + 11.2, { baseline: 'middle' });
+
+      } else {
+        // Standard Elite Slate High Contrast
+        doc.setDrawColor(100, 116, 139); // slate-500
+        doc.setFillColor(248, 250, 252); // slate-50
+        doc.roundedRect(x, y, itemWidth, itemHeight, 1.0, 1.0, 'FD');
+
+        // Vertical divider
+        doc.setLineWidth(0.08);
+        doc.setDrawColor(226, 232, 240); // Slate-200 line
+        doc.line(x + 24.5, y + 1.2, x + 24.5, y + 12.8);
+        
+        // Left Column elements:
+        // Hotspot Name / Title
+        doc.setTextColor(15, 23, 42); // slate-900
+        doc.setFont('Helvetica', 'bold');
+        const headerText = hotspotName.toUpperCase().trim();
+        let fs = 4.2;
+        doc.setFontSize(fs);
+        while (doc.getTextWidth(headerText) > 21.0 && fs > 1.2) {
+          fs -= 0.1;
+          doc.setFontSize(fs);
+        }
+        doc.text(headerText, x + 2.0, y + 2.6, { baseline: 'middle' });
+
+        // Code Background Capsule
+        doc.setFillColor(241, 245, 249); // slate-100 background
+        doc.roundedRect(x + 2.0, y + 4.2, 21.0, 4.8, 0.6, 0.6, 'F');
+
+        // Core Code
+        doc.setTextColor(220, 38, 38); // Red-600
+        doc.setFont('Courier', 'bold');
+        doc.setFontSize(10.0);
+        doc.text(v.code, x + 12.5, y + 6.8, { align: 'center', baseline: 'middle' });
+
+        // Profile / Bottom subtext
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(2.8);
+        if (hasProfile && v.profile) {
+          doc.setTextColor(30, 41, 59); // Dark slate
+          doc.text(`Prof: ${v.profile.substring(0, 12)}`, x + 2.0, y + 11.2, { baseline: 'middle' });
+        }
+
+        // Right Column elements:
+        // Price Badge
+        doc.setFillColor(30, 41, 59); // slate-800 dark
+        doc.roundedRect(x + 25.4, y + 1.4, 11.0, 3.6, 0.6, 0.6, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(6.0);
+        doc.text(`P${v.amount}`, x + 31.0, y + 3.2, { align: 'center', baseline: 'middle' });
+
+        // TIME & VALIDITY
+        doc.setTextColor(71, 85, 105); // slate-600
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(2.8);
+        doc.text(`TIME: ${formatTimeForDisplay(v.time)}`, x + 25.2, y + 7.4, { baseline: 'middle' });
+        doc.text(`VALIDITY: ${formatTimeForDisplay(v.validity)}`, x + 25.2, y + 11.2, { baseline: 'middle' });
+      }
+    });
+
+    // Save and record trigger down
+    const suffix = new Date().getTime().toString().slice(-6);
+    doc.save(`vouchers-${template}-${suffix}.pdf`);
+    ActivityLogger.logActivity('voucher_exported', `Generated grid-aligned printable PDF package matching ${generatedVouchers.length} cards`, { format: 'PDF', template: template });
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in text-slate-100">
+      
+      {/* Dynamic Expiration / Notice Indicators */}
+      {!isAccessGranted && (
+        <div className="bg-gradient-to-r from-red-900/30 to-rose-900/15 border border-red-500/20 p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-lg shadow-red-500/[0.02] animate-fade-in">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 bg-red-500/10 text-red-500 rounded-xl flex items-center justify-center border border-red-500/20 shrink-0 mt-0.5">
+              <BadgeAlert className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-200">
+                {isExpired ? 'Operator Rent Access EXPIRED' : 'No Access Rent Session Token Found'}
+              </h2>
+              <p className="text-xs text-slate-400 mt-1 max-w-xl">
+                {isExpired 
+                  ? `Your 1-Month Voucher generator sub rental expired on [${expiration}]. Renew today to continue printing codes.`
+                  : 'Your account is currently inactive on the code printing pool. Purchase a 1-Month generator lease below.'
+                }
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleActivateGeneratorClick}
+            className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 font-bold rounded-xl text-xs shadow-md transition-all shrink-0 text-center uppercase tracking-wider block"
+          >
+            Activate Generator Now
+          </button>
+        </div>
+      )}
+
+      {isAccessGranted && currentUser !== 'admin' && (
+        <div className="bg-gradient-to-r from-emerald-950/20 via-slate-900/10 to-slate-900/10 border border-emerald-500/20 p-5.5 rounded-2xl flex items-center gap-3.5 shadow-md shadow-emerald-500/[0.01]">
+          <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center border border-emerald-500/20 shadow-inner">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+              Voucher Generator Session Active
+              <span className="text-[10px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded-full font-mono uppercase">
+                {remainingDays} Days Left
+              </span>
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Authorized rent session valid until <strong className="text-slate-250 font-mono text-[11px] bg-slate-950/50 p-1 py-0.5 rounded border border-slate-855 ml-1">{expiration}</strong>
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Top action modules cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        {/* Buy Promo Card */}
+        {currentUser !== 'admin' && (
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg p-5 flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase tracking-widest text-[#aaa] font-bold">1-Month Rental</span>
+                <span className="text-xs font-mono bg-[#1a3a2a] text-emerald-400 border border-emerald-500/10 px-2 py-0.5 rounded-full">
+                  PHP {promoPrice}
+                </span>
+              </div>
+              <h3 className="font-bold text-sm text-slate-200">Re-Rent Voucher Generator</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Unlock generating forms and visual printable cards directly. Expires exactly 30 days starting activation date.
+              </p>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-col gap-2.5">
+              <button
+                onClick={handleBuyPromo}
+                className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5"
+              >
+                <PiggyBank className="w-4 h-4" />
+                Purchase with Balance
+              </button>
+              <button
+                onClick={() => handleToggleCard('promo', showPromo, setShowPromo)}
+                className="w-full py-1.5 text-center text-slate-400 hover:text-slate-200 focus:outline-none text-[11px]"
+              >
+                {showPromo ? 'Hide rental purchase history' : 'Show rental purchase history'}
+              </button>
+            </div>
+
+            {showPromo && (
+              <div className="mt-4 pt-4 border-t border-slate-800/80 text-xs space-y-2 max-h-[140px] overflow-y-auto animate-fade-in">
+                <span className="block text-[10px] text-slate-500 uppercase font-bold tracking-wider">Your Rental Sub Logs:</span>
+                {userPromoHistory.length === 0 ? (
+                  <span className="block text-slate-600 italic">No previous rental purchases logged.</span>
+                ) : (
+                  userPromoHistory.map((h, i) => (
+                    <div key={h.date + i} className="bg-slate-950/40 border border-slate-855 rounded p-2 flex justify-between items-center">
+                      <span className="text-emerald-400">PHP {h.price} paid</span>
+                      <span className="text-slate-500 font-mono text-[9px]">{new Date(h.date).toLocaleDateString()}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* GCash Cash In Card */}
+        {currentUser !== 'admin' && (
+          <div id="cash-in-card" className="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg p-5 flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase tracking-widest text-[#aaa] font-bold">GCash Deposit</span>
+                <span className="text-xs bg-slate-800 px-2 py-0.5 rounded text-blue-400 font-mono">09659067723</span>
+              </div>
+              <h3 className="font-bold text-sm text-slate-200">Load Cash Portfolio Balance</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Send GCash payment to our treasurer number, copy reference, and file a verification deposit row ticket today.
+              </p>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-col gap-2">
+              <button
+                onClick={() => handleToggleCard('cash', showCashIn, setShowCashIn)}
+                className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5"
+              >
+                <ArrowDownCircle className="w-4 h-4" />
+                Deposit Reference Tickets
+              </button>
+              <button
+                onClick={handleCopyNumber}
+                className="w-full py-1.5 text-center text-slate-450 hover:text-slate-350 focus:outline-none text-[11px]"
+              >
+                Copy treasurer number
+              </button>
+            </div>
+
+            {showCashIn && (
+              <div className="mt-4 pt-4 border-t border-slate-800/80 text-xs space-y-3 animate-fade-in max-h-[220px] overflow-y-auto">
+                {cashInSuccess && (
+                  <div className="p-2.5 bg-emerald-500/10 rounded border border-emerald-500/20 text-emerald-400 text-[10px]">
+                    {cashInSuccess}
+                  </div>
+                )}
+                {cashInError && (
+                  <div className="p-2.5 bg-red-500/10 rounded border border-red-500/20 text-red-400 text-[10px]">
+                    {cashInError}
+                  </div>
+                )}
+                
+                <form onSubmit={handleCashInSubmit} className="space-y-2.5">
+                  <div>
+                    <label className="block text-[10px] text-slate-450 uppercase mb-1">Transaction Ref Number</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter GCash Ref ID..."
+                      value={cashInRef}
+                      onChange={(e) => setCashInRef(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-450 uppercase mb-1">Load Amount (PESO PHP)</label>
+                    <input
+                      type="number"
+                      required
+                      min={10}
+                      value={cashInAmount}
+                      onChange={(e) => setCashInAmount(parseInt(e.target.value) || 0)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs"
+                  >
+                    Submit Reference Ticket
+                  </button>
+                </form>
+
+                <div className="pt-2 border-t border-slate-800/60 text-[10px]">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="block text-slate-500 uppercase tracking-widest font-bold">Active Ticket Queue:</span>
+                    <button
+                      type="button"
+                      onClick={() => loadUserMetadata()}
+                      className="text-indigo-400 hover:text-indigo-300 font-bold transition-all p-1 flex items-center gap-1 cursor-pointer focus:outline-none"
+                      title="Sync with database"
+                    >
+                      <RefreshCw className="w-3 h-3 hover:rotate-180 transition-all duration-300" />
+                      <span>Sync</span>
+                    </button>
+                  </div>
+                  {userRequests.length === 0 ? (
+                    <span className="text-slate-650 italic">No tickets filed yet.</span>
+                  ) : (
+                    userRequests.slice().reverse().map((req, i) => {
+                      const isPending = req.status === 'pending';
+                      const isApp = req.status === 'approved';
+                      return (
+                        <div key={req.refNumber + i} className="bg-slate-950/40 p-2 rounded border border-slate-855/50 flex justify-between items-center mb-1">
+                          <div className="truncate pr-1">
+                            <span className="block text-[11px] font-mono text-slate-350">{req.refNumber}</span>
+                            <span className="text-[9px] text-slate-600">PHP {req.approvedAmount || req.amount} deposited</span>
+                          </div>
+                          <span className={`text-[9px] uppercase font-bold ${isPending ? 'text-slate-500' : isApp ? 'text-emerald-400' : 'text-red-400'}`}>
+                             {req.status}
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Buy PortalKey Card */}
+        {currentUser !== 'admin' && (
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg p-5 flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase tracking-widest text-[#aaa] font-bold">PortalKey</span>
+                <span className="text-xs bg-slate-800 px-2 py-0.5 rounded text-indigo-400 font-mono">
+                  PHP {portalKeyPrice}
+                </span>
+              </div>
+              <h3 className="font-bold text-sm text-slate-200">𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟒.𝟒 (𝟏𝟔.𝟔𝐤𝐛)</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                “𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟔𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”
+              </p>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-col gap-2">
+              <button
+                onClick={handleBuyPortalKey}
+                className="w-full py-2 bg-indigo-650 hover:bg-indigo-600 text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1.5"
+              >
+                <KeyRound className="w-4 h-4" />
+                Buy Activation Key
+              </button>
+              <button
+                onClick={() => handleToggleCard('port', showPortalKeys, setShowPortalKeys)}
+                className="w-full py-1.5 text-center text-slate-450 hover:text-slate-350 focus:outline-none text-[11px]"
+              >
+                {showPortalKeys ? 'Hide generated key vault' : 'Show generated key vault'}
+              </button>
+            </div>
+
+            {showPortalKeys && (
+              <div className="mt-4 pt-4 border-t border-slate-800/80 text-xs space-y-2 animate-fade-in max-h-[220px] overflow-y-auto">
+                {portalKeySuccess && (
+                  <div className="p-2 bg-emerald-500/10 rounded border border-emerald-500/20 text-emerald-400 text-[10px]">
+                    {portalKeySuccess}
+                  </div>
+                )}
+                {portalKeyError && (
+                  <div className="p-2 bg-red-500/10 rounded border border-red-500/20 text-red-400 text-[10px]">
+                    {portalKeyError}
+                  </div>
+                )}
+
+                <span className="block text-[10px] text-slate-500 uppercase font-bold tracking-wider">Your Activated Serial Keys:</span>
+                {userPortalKeys.length === 0 ? (
+                  <span className="block text-slate-650 italic">No keys currently bought in this account.</span>
+                ) : (
+                  userPortalKeys.map((el, idx) => (
+                    <div key={el.serial + idx} className="bg-slate-950/40 border border-slate-855 rounded p-2.5 space-y-1.5 text-[11px]">
+                      <div className="flex justify-between text-slate-500">
+                        <span>Serial: <code className="text-slate-300 font-mono font-bold">{el.serial}</code></span>
+                        <span>{new Date(el.date).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-1 bg-slate-950 p-2 rounded border border-slate-850/80">
+                        <code className="text-emerald-400 font-mono text-xs select-all flex-1 truncate">{el.code}</code>
+                        <button
+                          onClick={async () => {
+                            navigator.clipboard.writeText(el.code);
+                            await showAlert('Copied', 'PortalKey code copied to clipboard!');
+                          }}
+                          className="p-1 px-1.5 bg-slate-800 text-slate-400 rounded hover:text-slate-100"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+      </div>
+
+      {/* Main Voucher Generation Section wrapper */}
+      {isAccessGranted && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        {/* Left Side: Generator Control Form */}
+        <div className="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl p-5.5 space-y-5">
+          <div className="flex items-center gap-2.5 border-b border-slate-800 pb-3">
+            <Settings2 className="w-5 h-5 text-indigo-400" />
+            <div>
+              <h3 className="font-bold text-slate-100">Setup Voucher Code</h3>
+              <p className="text-[11px] text-slate-450 mt-0.5">Configure hotspot values before generation</p>
+            </div>
+          </div>
+
+          {formError && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-xs rounded-xl">
+              {formError}
+            </div>
+          )}
+
+          {formSuccess && (
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-xl">
+              {formSuccess}
+            </div>
+          )}
+
+          <form onSubmit={handleGenerateVouchers} className="space-y-4 text-xs">
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-slate-450 mb-1 font-semibold uppercase tracking-wider text-[10px]">Prefix (1-4 chars)</label>
+                <input
+                  type="text"
+                  required
+                  maxLength={4}
+                  value={prefix}
+                  onChange={(e) => setPrefix(e.target.value.toUpperCase())}
+                  className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 uppercase tracking-widest font-mono text-center font-bold"
+                  placeholder="VC"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-450 mb-1 font-semibold uppercase tracking-wider text-[10px]">Voucher Length</label>
+                <input
+                  type="number"
+                  required
+                  min={4}
+                  max={16}
+                  value={charLength}
+                  onChange={(e) => setCharLength(parseInt(e.target.value) || 6)}
+                  className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 font-bold font-mono text-center"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-slate-450 mb-1 font-semibold uppercase tracking-wider text-[10px]">Cash Worth (PHP)</label>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  value={voucherAmount}
+                  onChange={(e) => setVoucherAmount(parseInt(e.target.value) || 5)}
+                  className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 text-center font-bold font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-450 mb-1 font-semibold uppercase tracking-wider text-[10px]">Quantity</label>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  max={1000}
+                  value={quantity}
+                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                  className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 text-center font-bold font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-slate-450 mb-1 font-semibold uppercase tracking-wider text-[10px]">Time (minutes)</label>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  value={timeMinutes}
+                  onChange={(e) => setTimeMinutes(parseInt(e.target.value) || 60)}
+                  className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 text-center text-[11px]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-450 mb-1 font-semibold uppercase tracking-wider text-[10px]">Validity (minutes)</label>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  value={validityMinutes}
+                  onChange={(e) => setValidityMinutes(parseInt(e.target.value) || 60)}
+                  className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 text-center text-[11px]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-slate-450 mb-1 font-semibold uppercase tracking-wider text-[10px]">MikroTik Profile (Optional)</label>
+              <input
+                type="text"
+                placeholder="e.g. 1hr-default"
+                value={userProfile}
+                onChange={(e) => setUserProfile(e.target.value)}
+                className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-100 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-slate-450 mb-1 font-semibold uppercase tracking-wider text-[10px]">Visual card styling template</label>
+              <select
+                value={template}
+                onChange={(e) => setTemplate(e.target.value as VoucherTemplate)}
+                className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-200 font-medium focus:outline-none focus:border-indigo-500"
+              >
+                <option value="template1">Standard Layout (Dashed/High Contrast)</option>
+                <option value="template2">Modern Template (Indigo Accent)</option>
+                <option value="template3">Classic Layout (Warm Parchment/Brown)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-slate-450 mb-1 font-semibold uppercase tracking-wider text-[10px]">MikroTik Hotspot Header</label>
+              <input
+                type="text"
+                required
+                value={hotspotName}
+                onChange={(e) => setHotspotName(e.target.value)}
+                className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-100 font-semibold"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-650 hover:from-blue-500 hover:to-indigo-550 text-white font-bold rounded-xl transition-all shadow-lg text-xs"
+            >
+              Generate printable vouchers
+            </button>
+          </form>
+
+        </div>
+
+        {/* Right Side: Printing Output & Actions */}
+        <div className="lg:col-span-8 space-y-6">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl p-5.5 space-y-5">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-2">
+                <Ticket className="w-5 h-5 text-indigo-400" />
+                <h3 className="font-bold text-slate-100">Live Voucher Catalog Output ({generatedVouchers.length})</h3>
+              </div>
+            </div>
+
+            {generatedVouchers.length > 0 && (
+              <div className="space-y-4 animate-fade-in">
+
+                {/* Additional file export utilities */}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    onClick={handleExportCSV}
+                    className="px-3.5 py-2 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-200 rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 focus:outline-none"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Save CSV Table
+                  </button>
+                  <button
+                    onClick={handleExportRSC}
+                    className="px-3.5 py-2 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-200 rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 focus:outline-none"
+                  >
+                    <Code className="w-3.5 h-3.5 text-indigo-400" />
+                    Save RSC Script
+                  </button>
+                  <button
+                    onClick={handleExportPDF}
+                    className="px-3.5 py-2 bg-slate-850 hover:bg-[#8b5a2b]/20 border border-[#8b5a2b]/30 text-amber-500 rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 focus:outline-none"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    Print / Download PDF cards
+                  </button>
+                </div>
+
+                {/* Voucher Script Preview representing formatted MikroTik ROS script directly below download list */}
+                <div className="bg-slate-950/60 rounded-xl border border-slate-800 p-4 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-slate-450 tracking-wide uppercase">
+                      voucher script preview
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyVoucherScript}
+                      className="px-2.5 py-1 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      {copiedScriptSuccess ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-400" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <ClipboardCopy className="w-3 h-3 text-indigo-400" />
+                          Copy Script
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <pre className="max-h-52 overflow-y-auto w-full bg-slate-950 font-mono text-[10.5px] leading-relaxed text-slate-400 p-3 rounded-lg border border-slate-900 scrollbar-thin select-all whitespace-pre-wrap break-all">
+                      {generateMikroTikScript(generatedVouchers, hotspotName)}
+                    </pre>
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {generatedVouchers.length === 0 && (
+              <VoucherCardList
+                vouchers={[]}
+                template={template}
+                hotspotName={hotspotName}
+              />
+            )}
+          </div>
+        </div>
+
+      </div>
+      )}
+
+      {/* Custom Dialog Overlay System */}
+      {dialog.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden transform scale-100 transition-all">
+            <div className="p-5 space-y-4 font-sans">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-indigo-500/15">
+                  <KeyRound className="w-5 h-5 text-indigo-400" />
+                </div>
+                <h4 className="font-bold text-slate-100 text-sm">
+                  {dialog.title}
+                </h4>
+              </div>
+              <p className="text-xs text-slate-350 leading-relaxed whitespace-pre-wrap">
+                {dialog.message}
+              </p>
+
+              {dialog.showInput && (
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    value={dialog.inputValue}
+                    placeholder={dialog.inputPlaceholder}
+                    onChange={(e) => setDialog(prev => ({ ...prev, inputValue: e.target.value }))}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        dialog.onConfirm(dialog.inputValue);
+                      }
+                    }}
+                  />
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-1">
+                {dialog.type !== 'alert' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (dialog.onCancel) dialog.onCancel();
+                      else setDialog(prev => ({ ...prev, isOpen: false }));
+                    }}
+                    className="px-3.5 py-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-850 text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  >
+                    {dialog.cancelText || 'Cancel'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => dialog.onConfirm(dialog.inputValue)}
+                  className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                >
+                  {dialog.confirmText || 'OK'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}

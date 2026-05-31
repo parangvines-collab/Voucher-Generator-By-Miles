@@ -1,0 +1,6 @@
+{
+  "name": "MikroTik Voucher Generator",
+  "description": "An elegant, self-contained portal to generate MikroTik vouchers, manage guest accounts, buy authorization keys, and log network manager operations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
