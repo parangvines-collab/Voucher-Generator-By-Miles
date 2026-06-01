@@ -1225,7 +1225,10 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
                     PHP {userPortalKeys.length === 0 ? portalKeyFirstPrice : portalKeySubsequentPrice}
                   </span>
                   <span className="text-[10px] text-emerald-400/90 font-medium tracking-wide">
-                    {userPortalKeys.length === 0 ? 'Buy a New PortalKey Again - 150 pesos' : 'Discounted Price'}
+                    {userPortalKeys.length === 0 
+                      ? `First purchase: PHP ${portalKeyFirstPrice} (Subsequent: PHP ${portalKeySubsequentPrice})` 
+                      : `Subsequent Discount Active: PHP ${portalKeySubsequentPrice}`
+                    }
                   </span>
                 </div>
               </div>
