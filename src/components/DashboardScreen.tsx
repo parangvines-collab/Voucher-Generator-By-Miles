@@ -1147,11 +1147,11 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
                 
                 <form onSubmit={handleCashInSubmit} className="space-y-2.5">
                   <div>
-                    <label className="block text-[10px] text-slate-450 uppercase mb-1">Transaction Ref Number</label>
+                    <label className="block text-[10px] text-slate-450 uppercase mb-1">Transaction GCash Ref Number</label>
                     <input
                       type="text"
                       required
-                      placeholder="Enter GCash Ref NUMBER"
+                      placeholder="Reference Number"
                       value={cashInRef}
                       onChange={(e) => setCashInRef(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
