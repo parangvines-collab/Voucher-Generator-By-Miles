@@ -13,7 +13,8 @@ import { Voucher, VoucherTemplate, CashInRequest, PortalKeyRecord, PromoHistoryI
 import { VoucherCardList } from './VoucherCardList';
 import { 
   PiggyBank, ArrowDownCircle, BadgeAlert, KeyRound, Ticket, 
-  Layers, Settings2, ShieldCheck, Download, Code, FileText, ClipboardCopy, Copy, Check, RefreshCw
+  Layers, Settings2, ShieldCheck, Download, Code, FileText, ClipboardCopy, Copy, Check, RefreshCw,
+  Smartphone, ExternalLink
 } from 'lucide-react';
 
 interface DashboardScreenProps {
@@ -659,6 +660,23 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
     });
   };
 
+  const handleOpenGCash = async () => {
+    try {
+      await navigator.clipboard.writeText('09659067723');
+      await showAlert(
+        'GCash Number Copied', 
+        'Treasurer GCash number (09659067723) has been copied successfully to your clipboard!\n\nRedirecting to your GCash app now. Please select "Express Send" in the GCash app and paste the copied number.'
+      );
+    } catch (e) {
+      console.warn('Clipboard copy failed:', e);
+    }
+
+    // Redirect or launch GCash App via deep link URL scheme
+    setTimeout(() => {
+      window.location.href = 'gcash://';
+    }, 400);
+  };
+
   // Voucher generation form submit
   const handleGenerateVouchers = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1114,6 +1132,15 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
               <p className="text-xs text-slate-400 leading-relaxed">
                 Send GCash payment to our treasurer number, copy reference, and file a verification deposit row ticket today.
               </p>
+              
+              <button
+                onClick={handleOpenGCash}
+                className="w-full mt-2.5 py-2.5 bg-[#0057E7] hover:bg-[#0047C4] text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-blue-900/20 group cursor-pointer"
+              >
+                <Smartphone className="w-4 h-4 transition-transform group-hover:scale-110" />
+                <span>Open GCash App & Send</span>
+                <ExternalLink className="w-3.5 h-3.5 text-blue-200" />
+              </button>
             </div>
 
             <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-col gap-2">
