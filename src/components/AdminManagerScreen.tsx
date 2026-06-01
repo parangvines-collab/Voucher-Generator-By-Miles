@@ -789,6 +789,58 @@ export function AdminManagerScreen() {
     loadAllData();
   };
 
+  // Admin: Load PortalKey for any user
+  const [portalKeyUser, setPortalKeyUser] = useState('');
+  const [portalKeySerial, setPortalKeySerial] = useState('');
+  const [portalKeyStatus, setPortalKeyStatus] = useState<{ success?: boolean; msg?: string }>({});
+
+  const handleGeneratePortalKeyForUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPortalKeyStatus({});
+
+    if (!portalKeyUser) {
+      setPortalKeyStatus({ success: false, msg: 'Please select a user.' });
+      return;
+    }
+    if (!portalKeySerial.trim()) {
+      setPortalKeyStatus({ success: false, msg: 'Serial number is required.' });
+      return;
+    }
+
+    const serialTrimmed = portalKeySerial.trim().toUpperCase();
+    const generatedKey = generatePortalKeyFromSerial(serialTrimmed);
+    if (!generatedKey) {
+      setPortalKeyStatus({ success: false, msg: 'Invalid serial number format.' });
+      return;
+    }
+
+    const confirmed = await showConfirm(
+      'Generate PortalKey',
+      `Generate activation key for user "${portalKeyUser}"?\n\nSerial: ${serialTrimmed}\nKey: ${generatedKey}`,
+      'Generate',
+      'Cancel'
+    );
+    if (!confirmed) return;
+
+    try {
+      const dateStr = new Date().toISOString();
+      await supabase.from('portal_keys').upsert([{
+        username: portalKeyUser,
+        serial_number: serialTrimmed,
+        portal_key: generatedKey,
+        status: 'approved',
+        date: dateStr
+      }]);
+      ActivityLogger.logActivity('portalkey_generated', `Admin generated PortalKey for ${portalKeyUser}`, { username: portalKeyUser, serial: serialTrimmed });
+      setPortalKeyStatus({ success: true, msg: `PortalKey generated successfully for ${portalKeyUser}!` });
+      setPortalKeySerial('');
+      loadAllData();
+    } catch (e) {
+      setPortalKeyStatus({ success: false, msg: 'Failed to save PortalKey to database.' });
+      console.warn('Could not save portal key for user:', e);
+    }
+  };
+
     const handleDeletePromoRow = async (item: PromoHistoryItem) => {
         const confirmed = await showConfirm('Delete Rental Record', `Delete subscription rental record log for ${item.username}?`);
         if (!confirmed) return;
@@ -1439,6 +1491,58 @@ export function AdminManagerScreen() {
                 className="w-full bg-indigo-650 hover:bg-indigo-600 text-white font-bold py-2.5 rounded-xl transition-all block text-center cursor-pointer"
               >
                 Change Admin Credentials
+              </button>
+            </form>
+          </div>
+
+          {/* Generate PortalKey for Users */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-emerald-400" />
+              <h3 className="font-bold text-slate-100">Generate PortalKey</h3>
+            </div>
+
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Manually generate activation keys for any operator user.
+            </p>
+
+            {portalKeyStatus.msg && (
+              <div className={`p-3 rounded-xl text-xs border ${portalKeyStatus.success ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+                {portalKeyStatus.msg}
+              </div>
+            )}
+
+            <form onSubmit={handleGeneratePortalKeyForUser} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold uppercase tracking-wider text-[10px]">Select User</label>
+                <select
+                  value={portalKeyUser}
+                  onChange={(e) => setPortalKeyUser(e.target.value)}
+                  className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="">-- Select operator --</option>
+                  {Object.keys(users).map((uName) => (
+                    <option key={uName} value={uName}>{uName}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold uppercase tracking-wider text-[10px]">Router Serial Number</label>
+                <input
+                  type="text"
+                  placeholder="Enter MikroTik serial (e.g. ABC123DEF)"
+                  value={portalKeySerial}
+                  onChange={(e) => setPortalKeySerial(e.target.value)}
+                  className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 font-mono"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl transition-all shadow-md shadow-emerald-600/10 cursor-pointer"
+              >
+                Generate & Save Key
               </button>
             </form>
           </div>
