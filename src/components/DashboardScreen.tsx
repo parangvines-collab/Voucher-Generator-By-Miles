@@ -40,9 +40,10 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
   const [portalKeyPrice, setPortalKeyPrice] = useState(50);
   const [portalKeyFirstPrice, setPortalKeyFirstPrice] = useState(300);
   const [portalKeySubsequentPrice, setPortalKeySubsequentPrice] = useState(150);
-  const [juanfiLink, setJuanfiLink] = useState('https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link');
-  const [juanfiTitle, setJuanfiTitle] = useState('𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟒.𝟒 (𝟏𝟔.𝟔𝐤𝐛)');
-  const [juanfiDescription, setJuanfiDescription] = useState('“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟔𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”');
+  const [juanfiLink, setJuanfiLink] = useState('/Enhanced%20JuanFi%20Portal%20ver.5.0%20(16.8kb).zip');
+  const [juanfiTitle, setJuanfiTitle] = useState('𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)');
+  const [juanfiDescription, setJuanfiDescription] = useState('“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”');
+  const [juanfiPassword, setJuanfiPassword] = useState('juanfi123');
 
   // Submissions
   const [cashInRef, setCashInRef] = useState('');
@@ -92,6 +93,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
     cancelText: string;
     onConfirm: (val: string) => void;
     onCancel?: () => void;
+    inputType?: string;
   }>({
     isOpen: false,
     type: 'alert',
@@ -149,7 +151,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
     });
   };
 
-  const showPrompt = (title: string, message: string, defaultValue = '', placeholder = '', confirmText = 'Save', cancelText = 'Cancel'): Promise<string | null> => {
+  const showPrompt = (title: string, message: string, defaultValue = '', placeholder = '', confirmText = 'Save', cancelText = 'Cancel', inputType = 'text'): Promise<string | null> => {
     return new Promise((resolve) => {
       setDialog({
         isOpen: true,
@@ -161,6 +163,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
         inputPlaceholder: placeholder,
         confirmText,
         cancelText,
+        inputType,
         onConfirm: (val) => {
           setDialog(prev => ({ ...prev, isOpen: false }));
           resolve(val);
@@ -191,9 +194,10 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
     let fbPortalKeyPrice = 50;
     let fbPortalKeyFirstPrice = 300;
     let fbPortalKeySubsequentPrice = 150;
-    let fbJuanfiLink = 'https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link';
-    let fbJuanfiTitle = '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟒.𝟒 (𝟏𝟔.𝟔𝐤𝐛)';
-    let fbJuanfiDesc = '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟔𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
+    let fbJuanfiLink = '/Enhanced%20JuanFi%20Portal%20ver.5.0%20(16.8kb).zip';
+    let fbJuanfiTitle = '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)';
+    let fbJuanfiDesc = '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
+    let fbJuanfiPassword = 'juanfi123';
 
     try {
       // 1. Fetch Global Setting Prices
@@ -204,9 +208,10 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
           if (s.key === 'portal_key_price') fbPortalKeyPrice = parseInt(s.value) || 50;
           if (s.key === 'portal_key_first_price') fbPortalKeyFirstPrice = parseInt(s.value) || 300;
           if (s.key === 'portal_key_subsequent_price') fbPortalKeySubsequentPrice = parseInt(s.value) || 150;
-          if (s.key === 'juanfi_link') fbJuanfiLink = s.value || 'https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link';
-          if (s.key === 'juanfi_title') fbJuanfiTitle = s.value || '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟒.𝟒 (𝟏𝟔.𝟔𝐤𝐛)';
-          if (s.key === 'juanfi_description') fbJuanfiDesc = s.value || '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟔𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
+          if (s.key === 'juanfi_link') fbJuanfiLink = s.value || '/Enhanced%20JuanFi%20Portal%20ver.5.0%20(16.8kb).zip';
+          if (s.key === 'juanfi_title') fbJuanfiTitle = s.value || '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)';
+          if (s.key === 'juanfi_description') fbJuanfiDesc = s.value || '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
+          if (s.key === 'juanfi_password') fbJuanfiPassword = s.value || 'juanfi123';
         });
       }
     } catch (e) {}
@@ -218,6 +223,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
     setJuanfiLink(fbJuanfiLink);
     setJuanfiTitle(fbJuanfiTitle);
     setJuanfiDescription(fbJuanfiDesc);
+    setJuanfiPassword(fbJuanfiPassword);
 
     if (currentUser === 'admin') {
       setIsAccessGranted(true);
@@ -555,6 +561,81 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
             // Optionally, you could implement a retry mechanism here
         }
     };
+
+  const handleProtectedDownload = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    const inputPass = await showPrompt(
+      'Download Verification',
+      'Please enter any of the Portal Keys you purchased to download the Enhanced JuanFi Portal archive:',
+      '',
+      '66QQA-A2UII-U6AI6-2MUIQ',
+      'Verify & Download',
+      'Cancel',
+      'text'
+    );
+    if (inputPass === null) return;
+    
+    const keyTrimmed = inputPass.trim();
+    if (!keyTrimmed) {
+      await showAlert('Invalid Key', 'Verification Key cannot be empty.');
+      return;
+    }
+
+    try {
+      // Check if entering a portal_key from the database table (generated key vault)
+      const { data, error } = await supabase
+        .from('portal_keys')
+        .select('*')
+        .eq('portal_key', keyTrimmed);
+
+      const isKeyValid = !error && data && data.length > 0;
+
+      if (isKeyValid) {
+        // Correct activation key! Trigger browser download
+        const downloadLink = document.createElement('a');
+        downloadLink.href = juanfiLink;
+        downloadLink.download = 'Enhanced JuanFi Portal ver.5.0 (16.8kb).zip';
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        ActivityLogger.logActivity('juanfi_download', `Downloaded Enhanced JuanFi Portal using activation key verification`);
+      } else {
+        // Fallback check against local state userPortalKeys just in case
+        const isLocalKeyValid = userPortalKeys.some(k => k.code === keyTrimmed);
+        if (isLocalKeyValid) {
+          const downloadLink = document.createElement('a');
+          downloadLink.href = juanfiLink;
+          downloadLink.download = 'Enhanced JuanFi Portal ver.5.0 (16.8kb).zip';
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+          ActivityLogger.logActivity('juanfi_download', `Downloaded Enhanced JuanFi Portal using local validation key`);
+        } else if (keyTrimmed === juanfiPassword) {
+          // Keep the admin/global juanfiPassword as a root fallback/developer master key
+          const downloadLink = document.createElement('a');
+          downloadLink.href = juanfiLink;
+          downloadLink.download = 'Enhanced JuanFi Portal ver.5.0 (16.8kb).zip';
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+        } else {
+          await showAlert('Incorrect Key', 'The Activation Key you entered is invalid or does not exist in the Key Vault. Please purchase an Activation Key first.');
+        }
+      }
+    } catch (err) {
+      const isLocalKeyValid = userPortalKeys.some(k => k.code === keyTrimmed);
+      if (isLocalKeyValid || keyTrimmed === juanfiPassword) {
+        const downloadLink = document.createElement('a');
+        downloadLink.href = juanfiLink;
+        downloadLink.download = 'Enhanced JuanFi Portal ver.5.0 (16.8kb).zip';
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+      } else {
+        await showAlert('Verification Error', 'Failed to verify key. Please enter a valid Activation Key.');
+      }
+    }
+  };
 
   // Buy Activation Key (PortalKey)
   const handleBuyPortalKey = async () => {
@@ -1268,17 +1349,14 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
                 {juanfiDescription}
               </p>
               <div className="pt-1.5 flex flex-wrap gap-2">
-                <a
-                  href={juanfiLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  referrerPolicy="no-referrer"
-                  className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 hover:text-emerald-300 font-bold transition-all bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20 shadow-sm"
-                  id="portal-download-link"
+                <button
+                  onClick={handleProtectedDownload}
+                  className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 hover:text-emerald-300 font-bold transition-all bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20 shadow-sm cursor-pointer"
+                  id="portal-download-button"
                 >
                   <Download className="w-3.5 h-3.5 animate-pulse" />
                   Download Enhanced JuanFi Portal
-                </a>
+                </button>
               </div>
             </div>
 
@@ -1604,7 +1682,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
               {dialog.showInput && (
                 <div className="mt-2">
                   <input
-                    type="text"
+                    type={dialog.inputType || 'text'}
                     value={dialog.inputValue}
                     placeholder={dialog.inputPlaceholder}
                     onChange={(e) => setDialog(prev => ({ ...prev, inputValue: e.target.value }))}

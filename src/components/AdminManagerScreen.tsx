@@ -22,9 +22,10 @@ export function AdminManagerScreen() {
   const [portalKeyPrice, setPortalKeyPrice] = useState(50);
   const [portalKeyFirstPrice, setPortalKeyFirstPrice] = useState(300);
   const [portalKeySubsequentPrice, setPortalKeySubsequentPrice] = useState(150);
-  const [juanfiLink, setJuanfiLink] = useState('https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link');
-  const [juanfiTitle, setJuanfiTitle] = useState('𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟒.𝟒 (𝟏𝟔.𝟔𝐤𝐛)');
-  const [juanfiDescription, setJuanfiDescription] = useState('“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟔𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”');
+  const [juanfiLink, setJuanfiLink] = useState('/Enhanced%20JuanFi%20Portal%20ver.5.0%20(16.8kb).zip');
+  const [juanfiTitle, setJuanfiTitle] = useState('𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)');
+  const [juanfiDescription, setJuanfiDescription] = useState('“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”');
+  const [juanfiPassword, setJuanfiPassword] = useState('juanfi123');
 
   // Telegram
   const [telegramBotToken, setTelegramBotToken] = useState('');
@@ -61,6 +62,7 @@ export function AdminManagerScreen() {
     cancelText: string;
     onConfirm: (val: string) => void;
     onCancel?: () => void;
+    inputType?: string;
   }>({
     isOpen: false,
     type: 'alert',
@@ -118,7 +120,7 @@ export function AdminManagerScreen() {
     });
   };
 
-  const showPrompt = (title: string, message: string, defaultValue = '', placeholder = '', confirmText = 'Save', cancelText = 'Cancel'): Promise<string | null> => {
+  const showPrompt = (title: string, message: string, defaultValue = '', placeholder = '', confirmText = 'Save', cancelText = 'Cancel', inputType = 'text'): Promise<string | null> => {
     return new Promise((resolve) => {
       setDialog({
         isOpen: true,
@@ -130,6 +132,7 @@ export function AdminManagerScreen() {
         inputPlaceholder: placeholder,
         confirmText,
         cancelText,
+        inputType,
         onConfirm: (val) => {
           setDialog(prev => ({ ...prev, isOpen: false }));
           resolve(val);
@@ -160,9 +163,10 @@ export function AdminManagerScreen() {
       let sbPortalKeyPrice = 50;
       let sbPortalKeyFirstPrice = 300;
       let sbPortalKeySubsequentPrice = 150;
-      let sbJuanfiLink = 'https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link';
-      let sbJuanfiTitle = '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟒.𝟒 (𝟏𝟔.𝟔𝐤𝐛)';
-      let sbJuanfiDesc = '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟔𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
+      let sbJuanfiLink = '/Enhanced%20JuanFi%20Portal%20ver.5.0%20(16.8kb).zip';
+      let sbJuanfiTitle = '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)';
+      let sbJuanfiDesc = '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧λ𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
+      let sbJuanfiPassword = 'juanfi123';
       let sbBotToken = '';
       let sbChatId = '';
 
@@ -175,9 +179,10 @@ export function AdminManagerScreen() {
           if (s.key === 'portal_key_subsequent_price') sbPortalKeySubsequentPrice = parseInt(s.value) || 150;
           if (s.key === 'telegram_bot_token') sbBotToken = s.value;
           if (s.key === 'telegram_chat_id') sbChatId = s.value;
-          if (s.key === 'juanfi_link') sbJuanfiLink = s.value || 'https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link';
-          if (s.key === 'juanfi_title') sbJuanfiTitle = s.value || '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟒.𝟒 (𝟏𝟔.𝟔𝐤𝐛)';
-          if (s.key === 'juanfi_description') sbJuanfiDesc = s.value || '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟔𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
+          if (s.key === 'juanfi_link') sbJuanfiLink = s.value || '/Enhanced%20JuanFi%20Portal%20ver.5.0%20(16.8kb).zip';
+          if (s.key === 'juanfi_title') sbJuanfiTitle = s.value || '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)';
+          if (s.key === 'juanfi_description') sbJuanfiDesc = s.value || '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧λ𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
+          if (s.key === 'juanfi_password') sbJuanfiPassword = s.value || 'juanfi123';
         });
 
         // Load last_seen timestamps from global_settings as fallback
@@ -198,6 +203,7 @@ export function AdminManagerScreen() {
       setJuanfiLink(sbJuanfiLink);
       setJuanfiTitle(sbJuanfiTitle);
       setJuanfiDescription(sbJuanfiDesc);
+      setJuanfiPassword(sbJuanfiPassword);
       setTelegramBotToken(sbBotToken);
       setTelegramChatId(sbChatId);
 
@@ -525,6 +531,28 @@ export function AdminManagerScreen() {
     } catch (e) {}
 
     ActivityLogger.logActivity('setting_changed', `Changed JuanFi Portal description to: ${descTrimmed}`);
+    loadAllData();
+  };
+
+  const handleEditJuanfiPassword = async () => {
+    const val = await showPrompt(
+      'Modify Download Password',
+      'Enter the password required to download the Enhanced JuanFi Portal file:',
+      juanfiPassword,
+      'Password'
+    );
+    if (val === null) return;
+    const passTrimmed = val.trim();
+    if (!passTrimmed) {
+      await showAlert('Invalid Password', 'Download password cannot be empty.');
+      return;
+    }
+
+    try {
+      await supabase.from('global_settings').upsert([{ key: 'juanfi_password', value: passTrimmed }]);
+    } catch (e) {}
+
+    ActivityLogger.logActivity('setting_changed', `Changed JuanFi Portal download password`);
     loadAllData();
   };
 
@@ -1589,7 +1617,7 @@ export function AdminManagerScreen() {
               {dialog.showInput && (
                 <div className="pt-1.5">
                   <input
-                    type="text"
+                    type={dialog.inputType || 'text'}
                     value={dialog.inputValue}
                     placeholder={dialog.inputPlaceholder}
                     onChange={(e) => setDialog(prev => ({ ...prev, inputValue: e.target.value }))}
