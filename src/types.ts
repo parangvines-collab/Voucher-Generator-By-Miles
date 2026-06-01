@@ -2,6 +2,7 @@ export interface UserData {
   password?: string;
   expiration?: string; // YYYY-MM-DD
   balance?: number;
+  lastSeen?: string;
 }
 
 export type UserDatabase = Record<string, UserData>;

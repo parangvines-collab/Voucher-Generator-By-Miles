@@ -5,12 +5,14 @@ import { generatePortalKeyFromSerial } from '../utils/voucherHelpers';
 import { supabase } from '../supabaseClient';
 import { 
   Users, DollarSign, Send, Lock, FileSpreadsheet, 
-  Check, X, Eye, EyeOff, Calendar, PlusCircle, Trash, RefreshCw, KeyRound, Link 
+  Check, X, Eye, EyeOff, Calendar, PlusCircle, Trash, RefreshCw, KeyRound, Link,
+  Wifi, WifiOff
 } from 'lucide-react';
 
 export function AdminManagerScreen() {
   // Accounts
   const [users, setUsers] = useState<UserDatabase>({});
+  const [lastSeenMap, setLastSeenMap] = useState<Record<string, string>>({});
   const [adminPassword, setAdminPassword] = useState('password');
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
   const [isAdminPassVisible, setIsAdminPassVisible] = useState(false);
@@ -177,6 +179,16 @@ export function AdminManagerScreen() {
           if (s.key === 'juanfi_title') sbJuanfiTitle = s.value || '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟒.𝟒 (𝟏𝟔.𝟔𝐤𝐛)';
           if (s.key === 'juanfi_description') sbJuanfiDesc = s.value || '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟔𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
         });
+
+        // Load last_seen timestamps from global_settings as fallback
+        const lastSeenData: Record<string, string> = {};
+        settings.forEach((s: any) => {
+          if (s.key && s.key.startsWith('last_seen_')) {
+            const uname = s.key.replace('last_seen_', '');
+            lastSeenData[uname] = s.value;
+          }
+        });
+        setLastSeenMap(lastSeenData);
       }
       setAdminPassword(sbAdminPass);
       setPromoPrice(sbPromoPrice);
@@ -197,7 +209,8 @@ export function AdminManagerScreen() {
           mappedUsers[p.username] = {
             password: p.password_plain || 'Secure Supabase Auth',
             expiration: p.expiration || '',
-            balance: parseFloat(p.balance) || 0
+            balance: parseFloat(p.balance) || 0,
+            lastSeen: p.last_seen || undefined
           };
         });
         setUsers(mappedUsers);
@@ -1102,12 +1115,22 @@ export function AdminManagerScreen() {
                 Object.entries(users).map(([uName, data]) => {
                   const uData = typeof data === 'object' && data !== null 
                     ? (data as any) 
-                    : { password: String(data), expiration: '', balance: 0 };
+                    : { password: String(data), expiration: '', balance: 0, lastSeen: undefined };
+                  const lastSeenStr = uData.lastSeen || lastSeenMap[uName];
+                  const lastSeen = lastSeenStr ? new Date(lastSeenStr) : null;
+                  const isOnline = lastSeen && (Date.now() - lastSeen.getTime() < 65 * 1000);
                   return (
                     <div key={uName} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3.5 last:pb-0">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-slate-150 text-sm">{uName}</span>
+                          <div 
+                            className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded font-mono border ${isOnline ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-800/60 text-slate-500 border-slate-700/50'}`}
+                            title={lastSeen ? `Last seen: ${lastSeen.toLocaleString()}` : 'Never logged in'}
+                          >
+                            {isOnline ? <Wifi className="w-2.5 h-2.5 animate-pulse" /> : <WifiOff className="w-2.5 h-2.5" />}
+                            {isOnline ? 'ONLINE' : 'OFFLINE'}
+                          </div>
                         </div>
                         <div className="flex flex-wrap gap-2 text-xs">
                           <span className="text-slate-400 flex items-center gap-1.5 bg-slate-950/40 px-2 py-1 rounded border border-slate-855/40 text-[11px]">

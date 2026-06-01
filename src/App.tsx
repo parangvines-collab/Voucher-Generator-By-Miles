@@ -30,6 +30,27 @@ export default function App() {
     }
   }, []);
 
+  // Heartbeat to update last_seen for online status
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser || currentUser === 'admin') return;
+    
+    const updateHeartbeat = async () => {
+      const now = new Date().toISOString();
+      try {
+        await supabase.from('profiles').update({ last_seen: now }).eq('username', currentUser);
+        await supabase.from('global_settings').upsert([{ key: `last_seen_${currentUser}`, value: now }]);
+      } catch (e) {
+        // ignore heartbeat errors gracefully
+      }
+    };
+    
+    // Update immediately and then every 30 seconds for highly responsive online detection
+    updateHeartbeat();
+    const interval = setInterval(updateHeartbeat, 30000);
+    
+    return () => clearInterval(interval);
+  }, [isAuthenticated, currentUser]);
+
   const loadUserBalance = async (user: string) => {
     if (user === 'admin') {
       setUserBalance(99999);
