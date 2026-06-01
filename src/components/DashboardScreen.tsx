@@ -677,6 +677,8 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
     }, 400);
   };
 
+
+
   // Voucher generation form submit
   const handleGenerateVouchers = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1068,7 +1070,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
       )}
 
       {/* Top action modules cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
         {/* Buy Promo Card */}
         {currentUser !== 'admin' && (
@@ -1241,6 +1243,8 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
           </div>
         )}
 
+
+
         {/* Buy PortalKey Card */}
         {currentUser !== 'admin' && (
           <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg p-5 flex flex-col justify-between">
@@ -1338,6 +1342,8 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
         )}
 
       </div>
+ 
+
 
       {/* Main Voucher Generation Section wrapper */}
       {isAccessGranted && (

@@ -6,7 +6,7 @@ import { supabase } from '../supabaseClient';
 import { 
   Users, DollarSign, Send, Lock, FileSpreadsheet, 
   Check, X, Eye, EyeOff, Calendar, PlusCircle, Trash, RefreshCw, KeyRound, Link,
-  Wifi, WifiOff
+  Wifi, WifiOff, Smartphone, ExternalLink
 } from 'lucide-react';
 
 export function AdminManagerScreen() {
