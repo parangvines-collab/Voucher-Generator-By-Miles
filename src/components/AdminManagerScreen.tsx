@@ -217,12 +217,14 @@ export function AdminManagerScreen() {
       const mappedUsers: UserDatabase = {};
       if (!errProfiles && profiles) {
         profiles.forEach((p: any) => {
-          mappedUsers[p.username] = {
-            password: p.password_plain || 'Secure Supabase Auth',
-            expiration: p.expiration || '',
-            balance: parseFloat(p.balance) || 0,
-            lastSeen: p.last_seen || undefined
-          };
+          if (p.username && p.username.trim() !== '' && p.username.toLowerCase() !== 'admin') {
+            mappedUsers[p.username] = {
+              password: p.password_plain || 'Secure Supabase Auth',
+              expiration: p.expiration || '',
+              balance: parseFloat(p.balance) || 0,
+              lastSeen: p.last_seen || undefined
+            };
+          }
         });
         setUsers(mappedUsers);
       }
@@ -340,7 +342,7 @@ export function AdminManagerScreen() {
   const handleDeleteUser = async (user: string) => {
     const confirmed = await showConfirm(
       'Delete Operator Account',
-      `Are you absolutely sure you want to delete user: ${user}? All balance and voucher expiration entries will be permanently erased from Supabase and local storage.`,
+      `Are you absolutely sure you want to delete user: ${user}? All balance and voucher expiration entries will be permanently erased from the Supabase database.`,
       'Yes, Delete',
       'Cancel'
     );
@@ -382,9 +384,10 @@ export function AdminManagerScreen() {
       return;
     }
 
-    // Checking if operator exists
-    if (users[trimUser]) {
-      setAddOperatorError('Username already exists in developer database.');
+    // Checking if operator exists (case-insensitive)
+    const userExists = Object.keys(users).some(u => u.toLowerCase() === trimUser.toLowerCase());
+    if (userExists) {
+      setAddOperatorError('Username already exists in database.');
       return;
     }
 

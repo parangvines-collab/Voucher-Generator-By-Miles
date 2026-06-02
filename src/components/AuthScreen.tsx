@@ -66,16 +66,19 @@ export function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
       }
 
       // Auto-heal profiles if missing in public profiles list
+      let sessionUsername = trimUser;
       if (data && data.user) {
         try {
-          const { data: prof, error: errProf } = await supabase.from('profiles').select('id').eq('username', trimUser);
-          if (errProf || !prof || prof.length === 0) {
+          const { data: prof, error: errProf } = await supabase.from('profiles').select('id, username').eq('id', data.user.id).single();
+          if (errProf || !prof) {
             await supabase.from('profiles').upsert([{
               id: data.user.id,
               username: trimUser,
               balance: 0,
               expiration: null
             }]);
+          } else if (prof && prof.username) {
+            sessionUsername = prof.username;
           }
         } catch (profileErr) {
           console.warn('Auto-healing profile error:', profileErr);
@@ -83,15 +86,15 @@ export function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
       }
 
       sessionStorage.setItem('authenticated', 'true');
-      sessionStorage.setItem('username', trimUser);
-      ActivityLogger.logActivity('user_login', 'User logged in (Supabase)', { username: trimUser });
+      sessionStorage.setItem('username', sessionUsername);
+      ActivityLogger.logActivity('user_login', 'User logged in (Supabase)', { username: sessionUsername });
       setSuccessMsg('Login successful! Redirecting...');
       
       // Redirect to Home "/"
       window.history.replaceState({}, '', '/');
 
       setTimeout(() => {
-        onLoginSuccess(trimUser);
+        onLoginSuccess(sessionUsername);
       }, 800);
     } catch (err: any) {
       ActivityLogger.logActivity('login_failed', 'Failed login attempt via Supabase', { username: trimUser, error: err.message });
