@@ -5,12 +5,14 @@ import { generatePortalKeyFromSerial } from '../utils/voucherHelpers';
 import { supabase } from '../supabaseClient';
 import { 
   Users, DollarSign, Send, Lock, FileSpreadsheet, 
-  Check, X, Eye, EyeOff, Calendar, PlusCircle, Trash, RefreshCw, KeyRound, Link 
+  Check, X, Eye, EyeOff, Calendar, PlusCircle, Trash, RefreshCw, KeyRound, Link,
+  Wifi, WifiOff, Smartphone, ExternalLink
 } from 'lucide-react';
 
 export function AdminManagerScreen() {
   // Accounts
   const [users, setUsers] = useState<UserDatabase>({});
+  const [lastSeenMap, setLastSeenMap] = useState<Record<string, string>>({});
   const [adminPassword, setAdminPassword] = useState('password');
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
   const [isAdminPassVisible, setIsAdminPassVisible] = useState(false);
@@ -20,9 +22,10 @@ export function AdminManagerScreen() {
   const [portalKeyPrice, setPortalKeyPrice] = useState(50);
   const [portalKeyFirstPrice, setPortalKeyFirstPrice] = useState(300);
   const [portalKeySubsequentPrice, setPortalKeySubsequentPrice] = useState(150);
-  const [juanfiLink, setJuanfiLink] = useState('https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link');
-  const [juanfiTitle, setJuanfiTitle] = useState('𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟒.𝟒 (𝟏𝟔.𝟔𝐤𝐛)');
-  const [juanfiDescription, setJuanfiDescription] = useState('“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟔𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”');
+  const [juanfiLink, setJuanfiLink] = useState('/Enhanced%20JuanFi%20Portal%20ver.5.0%20(16.8kb).zip');
+  const [juanfiTitle, setJuanfiTitle] = useState('𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)');
+  const [juanfiDescription, setJuanfiDescription] = useState('“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”');
+  const [juanfiPassword, setJuanfiPassword] = useState('juanfi123');
 
   // Telegram
   const [telegramBotToken, setTelegramBotToken] = useState('');
@@ -59,6 +62,7 @@ export function AdminManagerScreen() {
     cancelText: string;
     onConfirm: (val: string) => void;
     onCancel?: () => void;
+    inputType?: string;
   }>({
     isOpen: false,
     type: 'alert',
@@ -116,7 +120,7 @@ export function AdminManagerScreen() {
     });
   };
 
-  const showPrompt = (title: string, message: string, defaultValue = '', placeholder = '', confirmText = 'Save', cancelText = 'Cancel'): Promise<string | null> => {
+  const showPrompt = (title: string, message: string, defaultValue = '', placeholder = '', confirmText = 'Save', cancelText = 'Cancel', inputType = 'text'): Promise<string | null> => {
     return new Promise((resolve) => {
       setDialog({
         isOpen: true,
@@ -128,6 +132,7 @@ export function AdminManagerScreen() {
         inputPlaceholder: placeholder,
         confirmText,
         cancelText,
+        inputType,
         onConfirm: (val) => {
           setDialog(prev => ({ ...prev, isOpen: false }));
           resolve(val);
@@ -158,9 +163,10 @@ export function AdminManagerScreen() {
       let sbPortalKeyPrice = 50;
       let sbPortalKeyFirstPrice = 300;
       let sbPortalKeySubsequentPrice = 150;
-      let sbJuanfiLink = 'https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link';
-      let sbJuanfiTitle = '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟒.𝟒 (𝟏𝟔.𝟔𝐤𝐛)';
-      let sbJuanfiDesc = '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟔𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
+      let sbJuanfiLink = '/Enhanced%20JuanFi%20Portal%20ver.5.0%20(16.8kb).zip';
+      let sbJuanfiTitle = '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)';
+      let sbJuanfiDesc = '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧λ𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
+      let sbJuanfiPassword = 'juanfi123';
       let sbBotToken = '';
       let sbChatId = '';
 
@@ -173,10 +179,21 @@ export function AdminManagerScreen() {
           if (s.key === 'portal_key_subsequent_price') sbPortalKeySubsequentPrice = parseInt(s.value) || 150;
           if (s.key === 'telegram_bot_token') sbBotToken = s.value;
           if (s.key === 'telegram_chat_id') sbChatId = s.value;
-          if (s.key === 'juanfi_link') sbJuanfiLink = s.value || 'https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link';
-          if (s.key === 'juanfi_title') sbJuanfiTitle = s.value || '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟒.𝟒 (𝟏𝟔.𝟔𝐤𝐛)';
-          if (s.key === 'juanfi_description') sbJuanfiDesc = s.value || '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟔𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
+          if (s.key === 'juanfi_link') sbJuanfiLink = s.value || '/Enhanced%20JuanFi%20Portal%20ver.5.0%20(16.8kb).zip';
+          if (s.key === 'juanfi_title') sbJuanfiTitle = s.value || '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)';
+          if (s.key === 'juanfi_description') sbJuanfiDesc = s.value || '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧λ𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
+          if (s.key === 'juanfi_password') sbJuanfiPassword = s.value || 'juanfi123';
         });
+
+        // Load last_seen timestamps from global_settings as fallback
+        const lastSeenData: Record<string, string> = {};
+        settings.forEach((s: any) => {
+          if (s.key && s.key.startsWith('last_seen_')) {
+            const uname = s.key.replace('last_seen_', '');
+            lastSeenData[uname] = s.value;
+          }
+        });
+        setLastSeenMap(lastSeenData);
       }
       setAdminPassword(sbAdminPass);
       setPromoPrice(sbPromoPrice);
@@ -186,6 +203,7 @@ export function AdminManagerScreen() {
       setJuanfiLink(sbJuanfiLink);
       setJuanfiTitle(sbJuanfiTitle);
       setJuanfiDescription(sbJuanfiDesc);
+      setJuanfiPassword(sbJuanfiPassword);
       setTelegramBotToken(sbBotToken);
       setTelegramChatId(sbChatId);
 
@@ -197,7 +215,8 @@ export function AdminManagerScreen() {
           mappedUsers[p.username] = {
             password: p.password_plain || 'Secure Supabase Auth',
             expiration: p.expiration || '',
-            balance: parseFloat(p.balance) || 0
+            balance: parseFloat(p.balance) || 0,
+            lastSeen: p.last_seen || undefined
           };
         });
         setUsers(mappedUsers);
@@ -515,6 +534,28 @@ export function AdminManagerScreen() {
     loadAllData();
   };
 
+  const handleEditJuanfiPassword = async () => {
+    const val = await showPrompt(
+      'Modify Download Password',
+      'Enter the password required to download the Enhanced JuanFi Portal file:',
+      juanfiPassword,
+      'Password'
+    );
+    if (val === null) return;
+    const passTrimmed = val.trim();
+    if (!passTrimmed) {
+      await showAlert('Invalid Password', 'Download password cannot be empty.');
+      return;
+    }
+
+    try {
+      await supabase.from('global_settings').upsert([{ key: 'juanfi_password', value: passTrimmed }]);
+    } catch (e) {}
+
+    ActivityLogger.logActivity('setting_changed', `Changed JuanFi Portal download password`);
+    loadAllData();
+  };
+
   // Telegram settings save
   const handleSaveTelegram = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -789,6 +830,58 @@ export function AdminManagerScreen() {
     loadAllData();
   };
 
+  // Admin: Load PortalKey for any user
+  const [portalKeyUser, setPortalKeyUser] = useState('');
+  const [portalKeySerial, setPortalKeySerial] = useState('');
+  const [portalKeyStatus, setPortalKeyStatus] = useState<{ success?: boolean; msg?: string }>({});
+
+  const handleGeneratePortalKeyForUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPortalKeyStatus({});
+
+    if (!portalKeyUser) {
+      setPortalKeyStatus({ success: false, msg: 'Please select a user.' });
+      return;
+    }
+    if (!portalKeySerial.trim()) {
+      setPortalKeyStatus({ success: false, msg: 'Serial number is required.' });
+      return;
+    }
+
+    const serialTrimmed = portalKeySerial.trim().toUpperCase();
+    const generatedKey = generatePortalKeyFromSerial(serialTrimmed);
+    if (!generatedKey) {
+      setPortalKeyStatus({ success: false, msg: 'Invalid serial number format.' });
+      return;
+    }
+
+    const confirmed = await showConfirm(
+      'Generate PortalKey',
+      `Generate activation key for user "${portalKeyUser}"?\n\nSerial: ${serialTrimmed}\nKey: ${generatedKey}`,
+      'Generate',
+      'Cancel'
+    );
+    if (!confirmed) return;
+
+    try {
+      const dateStr = new Date().toISOString();
+      await supabase.from('portal_keys').upsert([{
+        username: portalKeyUser,
+        serial_number: serialTrimmed,
+        portal_key: generatedKey,
+        status: 'approved',
+        date: dateStr
+      }]);
+      ActivityLogger.logActivity('portalkey_generated', `Admin generated PortalKey for ${portalKeyUser}`, { username: portalKeyUser, serial: serialTrimmed });
+      setPortalKeyStatus({ success: true, msg: `PortalKey generated successfully for ${portalKeyUser}!` });
+      setPortalKeySerial('');
+      loadAllData();
+    } catch (e) {
+      setPortalKeyStatus({ success: false, msg: 'Failed to save PortalKey to database.' });
+      console.warn('Could not save portal key for user:', e);
+    }
+  };
+
     const handleDeletePromoRow = async (item: PromoHistoryItem) => {
         const confirmed = await showConfirm('Delete Rental Record', `Delete subscription rental record log for ${item.username}?`);
         if (!confirmed) return;
@@ -1050,12 +1143,22 @@ export function AdminManagerScreen() {
                 Object.entries(users).map(([uName, data]) => {
                   const uData = typeof data === 'object' && data !== null 
                     ? (data as any) 
-                    : { password: String(data), expiration: '', balance: 0 };
+                    : { password: String(data), expiration: '', balance: 0, lastSeen: undefined };
+                  const lastSeenStr = uData.lastSeen || lastSeenMap[uName];
+                  const lastSeen = lastSeenStr ? new Date(lastSeenStr) : null;
+                  const isOnline = lastSeen && (Date.now() - lastSeen.getTime() < 65 * 1000);
                   return (
                     <div key={uName} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3.5 last:pb-0">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-slate-150 text-sm">{uName}</span>
+                          <div 
+                            className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded font-mono border ${isOnline ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-800/60 text-slate-500 border-slate-700/50'}`}
+                            title={lastSeen ? `Last seen: ${lastSeen.toLocaleString()}` : 'Never logged in'}
+                          >
+                            {isOnline ? <Wifi className="w-2.5 h-2.5 animate-pulse" /> : <WifiOff className="w-2.5 h-2.5" />}
+                            {isOnline ? 'ONLINE' : 'OFFLINE'}
+                          </div>
                         </div>
                         <div className="flex flex-wrap gap-2 text-xs">
                           <span className="text-slate-400 flex items-center gap-1.5 bg-slate-950/40 px-2 py-1 rounded border border-slate-855/40 text-[11px]">
@@ -1443,6 +1546,58 @@ export function AdminManagerScreen() {
             </form>
           </div>
 
+          {/* Generate PortalKey for Users */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-emerald-400" />
+              <h3 className="font-bold text-slate-100">Generate PortalKey</h3>
+            </div>
+
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Manually generate activation keys for any operator user.
+            </p>
+
+            {portalKeyStatus.msg && (
+              <div className={`p-3 rounded-xl text-xs border ${portalKeyStatus.success ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+                {portalKeyStatus.msg}
+              </div>
+            )}
+
+            <form onSubmit={handleGeneratePortalKeyForUser} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold uppercase tracking-wider text-[10px]">Select User</label>
+                <select
+                  value={portalKeyUser}
+                  onChange={(e) => setPortalKeyUser(e.target.value)}
+                  className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="">-- Select operator --</option>
+                  {Object.keys(users).map((uName) => (
+                    <option key={uName} value={uName}>{uName}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold uppercase tracking-wider text-[10px]">Router Serial Number</label>
+                <input
+                  type="text"
+                  placeholder="Enter MikroTik serial (e.g. ABC123DEF)"
+                  value={portalKeySerial}
+                  onChange={(e) => setPortalKeySerial(e.target.value)}
+                  className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 font-mono"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl transition-all shadow-md shadow-emerald-600/10 cursor-pointer"
+              >
+                Generate & Save Key
+              </button>
+            </form>
+          </div>
+
         </div>
 
       </div>
@@ -1462,7 +1617,7 @@ export function AdminManagerScreen() {
               {dialog.showInput && (
                 <div className="pt-1.5">
                   <input
-                    type="text"
+                    type={dialog.inputType || 'text'}
                     value={dialog.inputValue}
                     placeholder={dialog.inputPlaceholder}
                     onChange={(e) => setDialog(prev => ({ ...prev, inputValue: e.target.value }))}

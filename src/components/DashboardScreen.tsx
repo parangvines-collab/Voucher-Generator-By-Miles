@@ -13,7 +13,8 @@ import { Voucher, VoucherTemplate, CashInRequest, PortalKeyRecord, PromoHistoryI
 import { VoucherCardList } from './VoucherCardList';
 import { 
   PiggyBank, ArrowDownCircle, BadgeAlert, KeyRound, Ticket, 
-  Layers, Settings2, ShieldCheck, Download, Code, FileText, ClipboardCopy, Copy, Check, RefreshCw
+  Layers, Settings2, ShieldCheck, Download, Code, FileText, ClipboardCopy, Copy, Check, RefreshCw,
+  Smartphone, ExternalLink, Trash2, Edit2, Coins, Search, Star
 } from 'lucide-react';
 
 interface DashboardScreenProps {
@@ -39,9 +40,10 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
   const [portalKeyPrice, setPortalKeyPrice] = useState(50);
   const [portalKeyFirstPrice, setPortalKeyFirstPrice] = useState(300);
   const [portalKeySubsequentPrice, setPortalKeySubsequentPrice] = useState(150);
-  const [juanfiLink, setJuanfiLink] = useState('https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link');
-  const [juanfiTitle, setJuanfiTitle] = useState('𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟒.𝟒 (𝟏𝟔.𝟔𝐤𝐛)');
-  const [juanfiDescription, setJuanfiDescription] = useState('“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟔𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”');
+  const [juanfiLink, setJuanfiLink] = useState('/Enhanced%20JuanFi%20Portal%20ver.5.0%20(16.8kb).zip');
+  const [juanfiTitle, setJuanfiTitle] = useState('𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)');
+  const [juanfiDescription, setJuanfiDescription] = useState('“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”');
+  const [juanfiPassword, setJuanfiPassword] = useState('juanfi123');
 
   // Submissions
   const [cashInRef, setCashInRef] = useState('');
@@ -78,6 +80,15 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
 
+  // Points System Management States
+  const [pointsEnabled, setPointsEnabled] = useState(true);
+  const [pointsPerPeso, setPointsPerPeso] = useState(10);
+  const [voucherPointsRecords, setVoucherPointsRecords] = useState<any[]>([]);
+  const [pointsSearch, setPointsSearch] = useState('');
+  const [isLoadingPoints, setIsLoadingPoints] = useState(false);
+  const [pointsSuccess, setPointsSuccess] = useState('');
+  const [pointsError, setPointsError] = useState('');
+
   // Dialog (Alert, Confirm, Prompt) custom state to bypass blocked native popups in sandbox iframes
   const [dialog, setDialog] = useState<{
     isOpen: boolean;
@@ -91,6 +102,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
     cancelText: string;
     onConfirm: (val: string) => void;
     onCancel?: () => void;
+    inputType?: string;
   }>({
     isOpen: false,
     type: 'alert',
@@ -148,7 +160,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
     });
   };
 
-  const showPrompt = (title: string, message: string, defaultValue = '', placeholder = '', confirmText = 'Save', cancelText = 'Cancel'): Promise<string | null> => {
+  const showPrompt = (title: string, message: string, defaultValue = '', placeholder = '', confirmText = 'Save', cancelText = 'Cancel', inputType = 'text'): Promise<string | null> => {
     return new Promise((resolve) => {
       setDialog({
         isOpen: true,
@@ -160,6 +172,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
         inputPlaceholder: placeholder,
         confirmText,
         cancelText,
+        inputType,
         onConfirm: (val) => {
           setDialog(prev => ({ ...prev, isOpen: false }));
           resolve(val);
@@ -190,9 +203,10 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
     let fbPortalKeyPrice = 50;
     let fbPortalKeyFirstPrice = 300;
     let fbPortalKeySubsequentPrice = 150;
-    let fbJuanfiLink = 'https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link';
-    let fbJuanfiTitle = '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟒.𝟒 (𝟏𝟔.𝟔𝐤𝐛)';
-    let fbJuanfiDesc = '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟔𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
+    let fbJuanfiLink = '/Enhanced%20JuanFi%20Portal%20ver.5.0%20(16.8kb).zip';
+    let fbJuanfiTitle = '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)';
+    let fbJuanfiDesc = '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
+    let fbJuanfiPassword = 'juanfi123';
 
     try {
       // 1. Fetch Global Setting Prices
@@ -203,9 +217,10 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
           if (s.key === 'portal_key_price') fbPortalKeyPrice = parseInt(s.value) || 50;
           if (s.key === 'portal_key_first_price') fbPortalKeyFirstPrice = parseInt(s.value) || 300;
           if (s.key === 'portal_key_subsequent_price') fbPortalKeySubsequentPrice = parseInt(s.value) || 150;
-          if (s.key === 'juanfi_link') fbJuanfiLink = s.value || 'https://drive.google.com/drive/folders/1XaAZf4UbWjSTl9w4uBc8iY8geoEsx084?usp=drive_link';
-          if (s.key === 'juanfi_title') fbJuanfiTitle = s.value || '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟒.𝟒 (𝟏𝟔.𝟔𝐤𝐛)';
-          if (s.key === 'juanfi_description') fbJuanfiDesc = s.value || '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟔𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
+          if (s.key === 'juanfi_link') fbJuanfiLink = s.value || '/Enhanced%20JuanFi%20Portal%20ver.5.0%20(16.8kb).zip';
+          if (s.key === 'juanfi_title') fbJuanfiTitle = s.value || '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)';
+          if (s.key === 'juanfi_description') fbJuanfiDesc = s.value || '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
+          if (s.key === 'juanfi_password') fbJuanfiPassword = s.value || 'juanfi123';
         });
       }
     } catch (e) {}
@@ -217,6 +232,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
     setJuanfiLink(fbJuanfiLink);
     setJuanfiTitle(fbJuanfiTitle);
     setJuanfiDescription(fbJuanfiDesc);
+    setJuanfiPassword(fbJuanfiPassword);
 
     if (currentUser === 'admin') {
       setIsAccessGranted(true);
@@ -300,6 +316,141 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
 
     } catch (e) {
       console.warn('Bypassing online fetch lists for operator:', e);
+    }
+
+    // Auto-fetch points configurations & monitored records on metadata updates
+    await loadPointsData();
+  };
+
+  const loadPointsData = async () => {
+    setIsLoadingPoints(true);
+    try {
+      const { data: settings, error: errSettings } = await supabase.from('global_settings').select('*');
+      if (settings && !errSettings) {
+        let enabled = true;
+        let rate = 10;
+        settings.forEach((s: any) => {
+          if (s.key === 'points_enabled') enabled = s.value === 'true';
+          if (s.key === 'points_per_peso') rate = parseFloat(s.value) || 10;
+        });
+        setPointsEnabled(enabled);
+        setPointsPerPeso(rate);
+
+        const records = settings
+          .filter((s: any) => s.key.startsWith('voucher_points_'))
+          .map((s: any) => {
+            try {
+              return JSON.parse(s.value);
+            } catch (err) {
+              return null;
+            }
+          })
+          .filter(Boolean);
+        
+        // Sort by last updated date or code
+        records.sort((a, b) => {
+          const tA = new Date(a.last_updated || 0).getTime();
+          const tB = new Date(b.last_updated || 0).getTime();
+          return tB - tA;
+        });
+
+        setVoucherPointsRecords(records);
+      }
+    } catch (err) {
+      console.error('Error loading points data:', err);
+    } finally {
+      setIsLoadingPoints(false);
+    }
+  };
+
+  const handleSavePointsSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPointsSuccess('');
+    setPointsError('');
+
+    try {
+      const { error: errEnabled } = await supabase.from('global_settings').upsert([
+        { key: 'points_enabled', value: String(pointsEnabled) }
+      ]);
+      const { error: errRate } = await supabase.from('global_settings').upsert([
+        { key: 'points_per_peso', value: String(pointsPerPeso) }
+      ]);
+
+      if (errEnabled || errRate) {
+        setPointsError('Failed to save configuration settings to Supabase.');
+      } else {
+        setPointsSuccess('Points system configuration successfully updated!');
+        ActivityLogger.logActivity(
+          'points_config_updated', 
+          `Configured points system: ${pointsEnabled ? 'Enabled_Active' : 'Disabled'} with conversion rate ${pointsPerPeso} Points/Peso`,
+          { enabled: pointsEnabled, rate: pointsPerPeso }
+        );
+        await loadPointsData();
+      }
+    } catch (err: any) {
+      setPointsError(err.message || 'An unexpected error occurred during database savings.');
+    }
+  };
+
+  const handleDeleteVoucherPoints = async (code: string) => {
+    const confirmDel = await showConfirm(
+      'Remove Voucher Record',
+      `Are you sure you want to permanently delete the points record for voucher [ ${code} ]? This transaction data cannot be undone.`,
+      'Delete',
+      'Cancel'
+    );
+    if (confirmDel) {
+      try {
+        const { error } = await supabase.from('global_settings').delete().eq('key', `voucher_points_${code}`);
+        if (!error) {
+          ActivityLogger.logActivity('points_record_deleted', `Deleted points record for voucher ${code}`, { code });
+          await loadPointsData();
+        } else {
+          await showAlert('Error', 'Failed to delete the points record from Supabase table.');
+        }
+      } catch (err) {
+        console.error('Delete error', err);
+      }
+    }
+  };
+
+  const handleEditVoucherPoints = async (code: string, currentCoins: number, currentPoints: number, currentMac: string) => {
+    const inputCoinsStr = await showPrompt(
+      'Modify Voucher Balance',
+      `Enter total coins inserted (PHP) to assign to voucher [ ${code} ]:`,
+      String(currentCoins),
+      'e.g. 20'
+    );
+    if (inputCoinsStr === null) return;
+    const newCoins = parseFloat(inputCoinsStr);
+    if (isNaN(newCoins) || newCoins < 0) {
+      await showAlert('Invalid Entry', 'Please specify a real positive currency number.');
+      return;
+    }
+
+    const calculatedPoints = newCoins * pointsPerPeso;
+    
+    try {
+      const payload = {
+        code,
+        points: calculatedPoints,
+        total_coins: newCoins,
+        mac: currentMac || '',
+        last_updated: new Date().toISOString()
+      };
+      
+      const { error } = await supabase.from('global_settings').upsert([
+        { key: `voucher_points_${code}`, value: JSON.stringify(payload) }
+      ]);
+      
+      if (!error) {
+        ActivityLogger.logActivity('points_record_edited', `Modified coins for voucher ${code} to ${newCoins} PHP`, { code, newCoins, points: calculatedPoints });
+        await loadPointsData();
+      } else {
+        await showAlert('Error', 'Failed to update voucher record inside Supabase.');
+      }
+    } catch (err) {
+      console.error('Edit error:', err);
     }
   };
 
@@ -555,6 +706,81 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
         }
     };
 
+  const handleProtectedDownload = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    const inputPass = await showPrompt(
+      'Download Verification',
+      'Please enter any of the Portal Keys you purchased to download the Enhanced JuanFi Portal archive:',
+      '',
+      '66QQA-A2UII-U6AI6-2MUIQ',
+      'Verify & Download',
+      'Cancel',
+      'text'
+    );
+    if (inputPass === null) return;
+    
+    const keyTrimmed = inputPass.trim();
+    if (!keyTrimmed) {
+      await showAlert('Invalid Key', 'Verification Key cannot be empty.');
+      return;
+    }
+
+    try {
+      // Check if entering a portal_key from the database table (generated key vault)
+      const { data, error } = await supabase
+        .from('portal_keys')
+        .select('*')
+        .eq('portal_key', keyTrimmed);
+
+      const isKeyValid = !error && data && data.length > 0;
+
+      if (isKeyValid) {
+        // Correct activation key! Trigger browser download
+        const downloadLink = document.createElement('a');
+        downloadLink.href = juanfiLink;
+        downloadLink.download = 'Enhanced JuanFi Portal ver.5.0 (16.8kb).zip';
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        ActivityLogger.logActivity('juanfi_download', `Downloaded Enhanced JuanFi Portal using activation key verification`);
+      } else {
+        // Fallback check against local state userPortalKeys just in case
+        const isLocalKeyValid = userPortalKeys.some(k => k.code === keyTrimmed);
+        if (isLocalKeyValid) {
+          const downloadLink = document.createElement('a');
+          downloadLink.href = juanfiLink;
+          downloadLink.download = 'Enhanced JuanFi Portal ver.5.0 (16.8kb).zip';
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+          ActivityLogger.logActivity('juanfi_download', `Downloaded Enhanced JuanFi Portal using local validation key`);
+        } else if (keyTrimmed === juanfiPassword) {
+          // Keep the admin/global juanfiPassword as a root fallback/developer master key
+          const downloadLink = document.createElement('a');
+          downloadLink.href = juanfiLink;
+          downloadLink.download = 'Enhanced JuanFi Portal ver.5.0 (16.8kb).zip';
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+        } else {
+          await showAlert('Incorrect Key', 'The Activation Key you entered is invalid or does not exist in the Key Vault. Please purchase an Activation Key first.');
+        }
+      }
+    } catch (err) {
+      const isLocalKeyValid = userPortalKeys.some(k => k.code === keyTrimmed);
+      if (isLocalKeyValid || keyTrimmed === juanfiPassword) {
+        const downloadLink = document.createElement('a');
+        downloadLink.href = juanfiLink;
+        downloadLink.download = 'Enhanced JuanFi Portal ver.5.0 (16.8kb).zip';
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+      } else {
+        await showAlert('Verification Error', 'Failed to verify key. Please enter a valid Activation Key.');
+      }
+    }
+  };
+
   // Buy Activation Key (PortalKey)
   const handleBuyPortalKey = async () => {
     // Determine the price dynamically based on first-time or subsequent purchases
@@ -658,6 +884,25 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
       await showAlert('Copied', 'Treasurer cell number 09659067723 copied to clipboard!');
     });
   };
+
+  const handleOpenGCash = async () => {
+    try {
+      await navigator.clipboard.writeText('09659067723');
+      await showAlert(
+        'GCash Number Copied', 
+        'Treasurer GCash number (09659067723) has been copied successfully to your clipboard!\n\nRedirecting to your GCash app now. Please select "Express Send" in the GCash app and paste the copied number.'
+      );
+    } catch (e) {
+      console.warn('Clipboard copy failed:', e);
+    }
+
+    // Redirect or launch GCash App via deep link URL scheme
+    setTimeout(() => {
+      window.location.href = 'gcash://';
+    }, 400);
+  };
+
+
 
   // Voucher generation form submit
   const handleGenerateVouchers = (e: React.FormEvent) => {
@@ -1050,7 +1295,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
       )}
 
       {/* Top action modules cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
         {/* Buy Promo Card */}
         {currentUser !== 'admin' && (
@@ -1114,6 +1359,15 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
               <p className="text-xs text-slate-400 leading-relaxed">
                 Send GCash payment to our treasurer number, copy reference, and file a verification deposit row ticket today.
               </p>
+              
+              <button
+                onClick={handleOpenGCash}
+                className="w-full mt-2.5 py-2.5 bg-[#0057E7] hover:bg-[#0047C4] text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-blue-900/20 group cursor-pointer"
+              >
+                <Smartphone className="w-4 h-4 transition-transform group-hover:scale-110" />
+                <span>Open GCash App & Send</span>
+                <ExternalLink className="w-3.5 h-3.5 text-blue-200" />
+              </button>
             </div>
 
             <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-col gap-2">
@@ -1214,6 +1468,8 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
           </div>
         )}
 
+
+
         {/* Buy PortalKey Card */}
         {currentUser !== 'admin' && (
           <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg p-5 flex flex-col justify-between">
@@ -1237,17 +1493,14 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
                 {juanfiDescription}
               </p>
               <div className="pt-1.5 flex flex-wrap gap-2">
-                <a
-                  href={juanfiLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  referrerPolicy="no-referrer"
-                  className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 hover:text-emerald-300 font-bold transition-all bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20 shadow-sm"
-                  id="portal-download-link"
+                <button
+                  onClick={handleProtectedDownload}
+                  className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 hover:text-emerald-300 font-bold transition-all bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20 shadow-sm cursor-pointer"
+                  id="portal-download-button"
                 >
                   <Download className="w-3.5 h-3.5 animate-pulse" />
                   Download Enhanced JuanFi Portal
-                </a>
+                </button>
               </div>
             </div>
 
@@ -1311,6 +1564,8 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
         )}
 
       </div>
+ 
+
 
       {/* Main Voucher Generation Section wrapper */}
       {isAccessGranted && (
@@ -1551,6 +1806,224 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
       </div>
       )}
 
+      {/* Points System Configuration and Voucher Points Monitor */}
+      {isAccessGranted && (
+        <div className="mt-8 border-t border-slate-800/80 pt-8 space-y-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div>
+              <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+                <Coins className="w-5 h-5 text-indigo-400" />
+                Hotspot Points System & Voucher Monitor
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">Configure active customer loyalty rewards/rate limits and track real-time portal transactions.</p>
+            </div>
+            <button
+              onClick={loadPointsData}
+              disabled={isLoadingPoints}
+              className="px-3 py-1.5 bg-slate-850 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-850"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 ${isLoadingPoints ? 'animate-spin' : ''}`} />
+              Refresh Portal Data
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Left Column: Configurations */}
+            <div className="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl p-5.5 space-y-5 shadow-xl">
+              <div className="flex items-center gap-2.5 border-b border-slate-800 pb-3">
+                <Settings2 className="w-5 h-5 text-indigo-400" />
+                <div>
+                  <h3 className="font-bold text-slate-100 text-sm">System Configurations</h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Define coin drop yields and multipliers</p>
+                </div>
+              </div>
+
+              {pointsSuccess && (
+                <div id="points-success-msg" className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 text-xs rounded-xl">
+                  {pointsSuccess}
+                </div>
+              )}
+              {pointsError && (
+                <div id="points-error-msg" className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-xs rounded-xl">
+                  {pointsError}
+                </div>
+              )}
+
+              <form onSubmit={handleSavePointsSettings} className="space-y-4 text-xs">
+                {/* Enable / Disable Toggler */}
+                <div className="flex items-center justify-between p-3.5 bg-slate-950/55 rounded-xl border border-slate-800/85">
+                  <div className="space-y-0.5">
+                    <span className="block font-bold text-slate-200">Points System Service</span>
+                    <span className="text-[10px] text-slate-400">Allow customers to accumulate coins reward points</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPointsEnabled(!pointsEnabled)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${pointsEnabled ? 'bg-indigo-600' : 'bg-slate-800'}`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${pointsEnabled ? 'translate-x-5' : 'translate-x-0'}`}
+                    />
+                  </button>
+                </div>
+
+                {/* Points Multiplier Rate */}
+                <div className="space-y-1.5">
+                  <label className="block text-slate-350 font-semibold uppercase tracking-wider text-[10px]">
+                    Points Rate (Points per ₱1 Coin inserted)
+                  </label>
+                  <div className="relative rounded-xl border border-slate-800 bg-slate-950/70 overflow-hidden">
+                    <input
+                      type="number"
+                      required
+                      min={1}
+                      max={1000}
+                      disabled={!pointsEnabled}
+                      value={pointsPerPeso}
+                      onChange={(e) => setPointsPerPeso(parseInt(e.target.value) || 1)}
+                      className="w-full px-4 py-3 text-slate-100 font-bold font-mono focus:outline-none disabled:text-slate-600"
+                    />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-indigo-400 select-none text-[11px] font-mono">
+                      PTS / Pesos
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-450">
+                    If set to <code className="text-indigo-400 font-mono">10</code>, inserting ₱5 will reward the consumer 50 points.
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all shadow-md shadow-indigo-600/10 text-xs cursor-pointer"
+                >
+                  Save Configuration
+                </button>
+              </form>
+            </div>
+
+            {/* Right Column: Monitors / Voucher Table */}
+            <div className="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl p-5.5 space-y-5 shadow-xl">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-4">
+                <div className="flex items-center gap-2">
+                  <Star className="w-5 h-5 text-indigo-400" />
+                  <div>
+                    <h3 className="font-bold text-slate-100 text-sm">Voucher Activity & Points Monitor</h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Real-time stats from active hotspot sessions</p>
+                  </div>
+                </div>
+
+                {/* Search Bar */}
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-450" />
+                  <input
+                    type="text"
+                    placeholder="Search Code or MAC..."
+                    value={pointsSearch}
+                    onChange={(e) => setPointsSearch(e.target.value)}
+                    className="w-full bg-slate-950/80 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              {/* Data Table */}
+              <div className="overflow-x-auto rounded-xl border border-slate-800">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-950 text-slate-300 border-b border-slate-800/80 font-semibold text-[11px]">
+                      <th className="p-3 uppercase">Voucher Code</th>
+                      <th className="p-3 uppercase">MAC Address</th>
+                      <th className="p-3 uppercase">Coins Inserted</th>
+                      <th className="p-3 uppercase">Points Earned</th>
+                      <th className="p-3 uppercase">Last Coin Dropped</th>
+                      <th className="p-3 uppercase text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {voucherPointsRecords.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="text-center p-8 text-slate-400 font-mono text-xs">
+                          {isLoadingPoints ? 'Retrieving records...' : 'No voucher points activity logged yet.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      (() => {
+                        const filtered = voucherPointsRecords.filter(r => 
+                          r.code?.toLowerCase().includes(pointsSearch.toLowerCase()) ||
+                          r.mac?.toLowerCase().includes(pointsSearch.toLowerCase())
+                        );
+
+                        if (filtered.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={6} className="text-center p-8 text-slate-400 font-mono text-xs">
+                                No records match search query: "{pointsSearch}"
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return filtered.map((r, idx) => (
+                          <tr 
+                            key={r.code || idx} 
+                            className="border-b border-slate-800 hover:bg-slate-950/20 text-slate-300 transition-colors"
+                          >
+                            <td className="p-3 font-mono font-bold text-slate-200 select-all">
+                              <span className="bg-slate-950 px-2 py-1 rounded border border-slate-800">{r.code}</span>
+                            </td>
+                            <td className="p-3 font-mono text-slate-350 text-[11px]">
+                              {r.mac ? (
+                                <span className="flex items-center gap-1">
+                                  <Smartphone className="w-3 h-3 text-slate-500" />
+                                  {r.mac}
+                                </span>
+                              ) : (
+                                <span className="text-slate-500 font-normal">--</span>
+                              )}
+                            </td>
+                            <td className="p-3 font-bold text-indigo-400 font-mono">
+                              ₱{(parseFloat(r.total_coins) || 0).toFixed(2)}
+                            </td>
+                            <td className="p-3">
+                              <span className="inline-flex items-center gap-1 font-bold text-amber-500 bg-amber-500/10 px-2.5 py-0.5 rounded-full text-[11px] border border-amber-500/25">
+                                <Star className="w-3 h-3 fill-current" />
+                                {Math.round(r.points || 0).toLocaleString()}
+                              </span>
+                            </td>
+                            <td className="p-3 text-[11px] text-slate-400 font-mono">
+                              {r.last_updated ? new Date(r.last_updated).toLocaleString() : 'N/A'}
+                            </td>
+                            <td className="p-3 text-right">
+                              <div className="flex justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditVoucherPoints(r.code, r.total_coins, r.points, r.mac)}
+                                  className="p-1 px-1.5 bg-slate-850 hover:bg-slate-800 text-indigo-450 hover:text-indigo-400 rounded-lg border border-slate-800/80 cursor-pointer"
+                                  title="Edit user coin balance"
+                                >
+                                  <Edit2 className="w-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteVoucherPoints(r.code)}
+                                  className="p-1 px-1.5 bg-slate-850 hover:bg-slate-800 text-red-500 hover:text-red-400 rounded-lg border border-slate-800/80 cursor-pointer"
+                                  title="Reset/Delete points record"
+                                >
+                                  <Trash2 className="w-3" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ));
+                      })()
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Custom Dialog Overlay System */}
       {dialog.isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fade-in">
@@ -1571,7 +2044,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
               {dialog.showInput && (
                 <div className="mt-2">
                   <input
-                    type="text"
+                    type={dialog.inputType || 'text'}
                     value={dialog.inputValue}
                     placeholder={dialog.inputPlaceholder}
                     onChange={(e) => setDialog(prev => ({ ...prev, inputValue: e.target.value }))}

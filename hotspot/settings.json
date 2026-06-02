@@ -1,0 +1,70 @@
+{
+    "Settings" : {
+        "vendo_option"          :   2,
+        "username_only"         :   true,
+        "currency"              :   "₱",
+        "footer_text"           :   "Miles",
+        "footer_link"           :   "https://www.facebook.com/miles112501/",
+        "marquee_text"          :   "ANG GUGMA MURAG PISOWIFI... KUTOB RA SA TIME, PAGKAHUROT, DISCONNECT DAYON.",
+        "voucher_input"         :   true,
+        "insert_coin"           :   true,
+        "pause_button"          :   true,
+        "member_logout_button"  :   true,
+        "trial_logout_button"   :   true,
+        "subscription"          :   true,
+        "internet_status"       :   true,
+        "ewallet_enabled"       :   true,
+        "member_login"          :   true,
+        "wifi_rates_show"       :   true,
+        "wifi_rates_offline"    :   true,
+        "mikhmon"               :   false,
+        "theme"                 :   "auto"
+    },
+
+    "wifi_rates" : [
+        { "amount": "₱ 5", "time": "3H", "validity": "1D" },
+        { "amount": "₱ 10", "time": "7H:2M", "validity": "1D" },
+        { "amount": "₱ 15", "time": "12H:2M", "validity": "1D" },
+        { "amount": "₱ 20", "time": "1D", "validity": "1D:12H" },
+        { "amount": "₱ 50", "time": "3D", "validity": "3D:2M" }
+    ],
+
+    "portalKey" : "QQ2YY-E2UMI-EUI26-IAY2Y",
+    "mac_binding" : false,
+    "subscription_prefix" : ["ME", "Vc", "MO", "Ec"],
+
+    "ewallet" : {
+        "portalKey" : "67e8053ea7223",
+        "serverIP" : "10.0.1.254",
+        "usernameField" : "username",
+        "submitButton" : "submit"
+    },
+
+    "no_internet_settings" : {
+        "insertcoin"               :    false,
+        "auto_pause"               :    false,
+        "internet_status_tittle"   :    "No Internet",
+        "internet_status_text"     :    "Some actions aren't available OFFLINE. Please contact the vendo owner."
+    },
+
+    "VendoAddresses" : [
+        {
+            "ssid"            :   "EA PISO WIFI",
+            "vendoName"       :   "EA VENDO",
+            "vendoIp"         :   "10.0.0.254",
+            "interfaceName"   :   "bridge-HS"
+        },
+        {
+            "ssid"            :   "LAUSA PISO WIFI",
+            "vendoName"       :   "LAUSA VENDO",
+            "vendoIp"         :   "10.0.1.254",
+            "interfaceName"   :   "vlan1"
+        },
+        {
+            "ssid"            :   "JONATHAN PISO WIFI",
+            "vendoName"       :   "JONATHAN VENDO",
+            "vendoIp"         :   "10.0.2.254",
+            "interfaceName"   :   "vlan2"
+        }
+    ]
+}

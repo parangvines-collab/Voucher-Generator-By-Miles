@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<link rel="stylesheet" href="Miles/css/style.css">
+	<link rel="stylesheet" href="http://payments.wifree.network/widgetv2/juanfi/ewalletvoucher.css">
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+ <style>
+ @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  #status {
+    position: relative;
+    display: inline-block;
+  }
+  #status.loading::after {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+ /* Uppercase text in all modals */
+   .modal * {
+     text-transform: uppercase;
+   }
+   /* Keep member login inputs in their original case */
+   .modal #Muser,
+   .modal #Mpass {
+     text-transform: none;
+   }
+   /* Logo edge-to-edge on mobile, constrained on desktop */
+   .logo-fullwidth {
+     display: block;
+     width: 100%;
+     height: auto;
+     margin: 0;
+     margin-bottom: 1px;
+   }
+   @media (min-width: 768px) {
+     .logo-fullwidth {
+       max-width: 480px;
+       margin-left: auto;
+       margin-right: auto;
+       display: block;
+     }
+   }
+   @media (min-width: 1024px) {
+     .logo-fullwidth {
+       max-width: 560px;
+     }
+   }
+   @media (min-width: 1440px) {
+     .logo-fullwidth {
+       max-width: 660px;
+     }
+   }
+  </style>
+</head>
+<body id="body" data-interface="$(interface-name)" data-region="cebu">
+	<img src="Miles/img/mainlogo.png" class="img-fluid running-border logo-fullwidth" alt="" style="">
+	<div class="marquee-container">
+		<div class="marquee-content" data-marquee-text>ANG GUGMA MURAG PISOWIFI... KUTOB RA SA TIME, PAGKAHUROT, DISCONNECT DAYON.</div>
+	</div>
+		<div class="row">
+
+    	<div class="logo-spacer"></div>
+	<div class="container">
+			<div class="content">
+				<p><b style="display:none;">Status:</b><span id="status">Disconnected</span></p>
+				<div class="time-wrapper" id="timerWrapper">
+					<span id="timer" style="display:none;">0m : 0s</span>
+					<small style="font-weight: 400; font-size:12px; color:#fff; text-transform:uppercase; text-shadow: 0 2px 2px rgba(0,0,0,0.8);">REMAINING TIME:</small>
+					<div class="timer-display" id="timerDisplay">
+						<div class="timer-box">
+							<span id="my-day">0</span>
+							<small>Day</small>
+						</div>
+						<div class="timer-box">
+							<span id="my-hour">0</span>
+							<small>Hour</small>
+						</div>
+						<div class="timer-box">
+							<span id="my-min">0</span>
+							<small>Min</small>
+						</div>
+						<div class="timer-box">
+							<span id="my-sec">0</span>
+							<small>Sec</small>
+						</div>
+					</div>
+					<div class="member-info" id="memberInfo" style="display:none;">
+						<div class="member-avatar">
+							<img src="Miles/img/user.svg" style="width:16px;height:16px;" alt="User">
+						</div>
+						<div class="member-details">
+							<small class="member-label">Logged in as</small>
+							<span id="memberName" class="member-name">--</span>
+						</div>
+					</div>
+				</div>
+			</div>
+		<div style="margin-top: auto;"></div>
+ 
+ 	<div style="text-align:left;position:fixed;bottom:5px;left:10px;font-size:6px;opacity:1;z-index:9999;padding:5px;border-radius:3px;"><a id="devLink" href="#" target="_blank" style="color:#fff;text-decoration:none;font-weight:bold;"><b>Dev.</b></a></div>
+
+   		<div class="btn-group">
+ 	
+ 			<div style="display: auto; flex-direction: column; gap: 5px; width: 100%;">
+ 			
+ 				<div style="display: flex; gap: 5px;">
+ 					<button type="button" class="btn btn-primary" id="insertBtn"> Insert Coin</button>
+ 				</div>
+
+			<div style="display: flex; gap: 5px;">
+				<button type="button" style="display: none;" class="btn btn-warning" id="pauseBtn"> Pause</button>
+			</div>
+
+<div style="display: flex; gap: 5px;">
+				<button type="button" class="btn btn-rates" id="ratesBtn" style="display:none;"> Wifi Rates</button>
+			</div>
+
+  			<div style="display: flex; gap: 5px;">
+  				<button type="button" class="btn btn-GCash" id="gcashBtn_new" style="display:none;" onclick="openEWalletModal();"> Buy voucher using GCASH</button>
+  			</div>
+  			<div style="display: flex; gap: 5px;">
+  				<button type="button" class="btn btn-memberlogin" id="memberBtn" title="Member Login">
+  					Member Login
+  				</button>
+  			</div>
+				
+				
+				
+				</div>
+			<div style="margin-bottom: -10px;"> </div>
+		</div>
+		<div class="wrapper">
+			<div style="margin-top: 5px;"></div>
+		<div class="banner d-none">
+
+			<div class="ribbon-wrapper">
+				<div data-vendo class="ribbon"></div>
+			</div>
+			<h4 data-ssid></h4>
+		</div>
+
+		<div style="margin-top: 15px;"></div>
+		<div class="btn-group">
+<div class="input-group">
+				<input type="text" id="username" value="" placeholder="Voucher Here..">
+				<button type="button" id="submit" class="submit btn-memberlogin">Submit</button>
+			</div>
+
+<div class="rates-preview" style="display:none;">
+  				<h4 class="rates-preview-header">Wifi Rates</h4>
+  				<table>
+ 					<thead>
+ 						<tr>
+ 							<td>Amount</td>
+ 							<td>Time</td>
+ 							<td>Validity</td>
+ 						</tr>
+ 					</thead>
+ 					<tbody id="ratesPreview">
+ 						<tr><td>₱ 20</td><td>1 Hour</td><td>2 Days</td></tr>
+ 						<tr><td>₱ 50</td><td>3 Hours</td><td>3 Days</td></tr>
+ 						<tr><td>₱ 100</td><td>8 Hours</td><td>5 Days</td></tr>
+ 					</tbody>
+ 				</table>
+ 				<hr class="prettyline">
+ 			</div>
+
+		<div style="margin-bottom: auto;"></div>
+<div style="text-align:center;position:fixed;bottom:0;left:0;width:100%;font-size:10.5px;background-color:#6c757D;color:white;padding:20px 0;">
+	<span data-ftxt><b>Powered by: <a id="link" href="#" style="color:#CC4444; text-decoration:none; background-color:transparent;">Miles</a></b><span style="color:white;">.© All rights reserved 2026</span></span><br>
+	<b style="color:#004F80; font-size:12px;"></b>
+</div>
+   	<!-- Floating Action Buttons (bottom right) -->
+   	<div class="floating-actions" style="left:auto;right:10px;transform:none;">
+   		<button type="button" class="fab-btn fab-deviceinfo" id="deviceInfoBtn" title="Device Info">
+   			<img src="Miles/img/info.png" class="fab-icon" alt="Device Info">
+   		</button>
+   	</div>
+  	</div>
+ 		<div class="modal" id="insertCoinModal" data-insert-coin tabindex="-1">
+			<div class="modal-dialog">
+				<div class="header">Please Insert Coin</div>
+				<div class="coin-progress-wrapper">
+					<div class="coin-progress-circle">
+						<svg viewBox="0 0 100 100">
+							<circle class="coin-progress-bg" cx="50" cy="50" r="45"/>
+							<circle class="coin-progress-fill" cx="50" cy="50" r="45"/>
+						</svg>
+						<div class="coin-progress-content">
+							<span id="totalCoin">₱ 0</span>
+						</div>
+					</div>
+				</div>
+				<div class="progress-bar" style="display:none;"></div>
+				<div id="insBody">
+					<hr class="prettyline">
+					<table>
+						<tr>
+							<td>
+								<p style="font-weight: 400;">Vendo:</p>
+							</td>
+							<td>
+								<span data-vendo></span>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<p style="font-weight: 400;">Time:</p>
+							</td>
+							<td>
+								<span id="totalTime">--:--</span>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<p style="font-weight: 400;">Validity:</p>
+							</td>
+							<td>
+								<span id="validity">--:--</span>
+							</td>
+						</tr>
+					</table>
+					<br>
+					<hr class="prettyline">
+					<br>
+ 					<button data-ic-close class="btn btn-cancel"><img src="Miles/img/close.png" class="btn-icon btn-close-icon" alt=""> Close</button>
+				</div>
+			</div>
+		</div>
+		<div class="modal" data-select-vendo>
+			<div class="modal-dialog">
+				<div class="header">Chose Your Location</div>
+				<hr class="prettyline">
+				<div id="selectVendo"></div>
+				<hr class="prettyline">
+ 				<button data-sv-close class="btn btn-secondary"><img src="Miles/img/close.png" class="btn-icon btn-close-icon" alt=""> Close</button>
+			</div>
+		</div>
+		<div class="modal" data-rates>
+			<div class="modal-dialog">
+				<div class="header">Wifi Rates</div>
+				<div id="ratesBody">
+					<hr class="prettyline">
+					<table>
+						<thead>
+							<tr>
+								<td>Vendo</td>
+								<td>Amount</td>
+								<td>Time</td>
+								<td>Validity</td>
+							</tr>
+						</thead>
+						<tbody id="rates"></tbody>
+					</table>
+					<br>
+ 					<button data-wr-close class="btn btn-secondary"><img src="Miles/img/close.png" class="btn-icon btn-close-icon" alt=""> Close</button>
+				</div>
+			</div>
+		</div>
+		<div class="modal" data-member tabindex="-1">
+			<div class="modal-dialog">
+				<div class="header">Member Login</div>
+				<div id="mlBody">
+					<hr class="prettyline">
+					<input type="username" id="Muser" placeholder="Username" style="background-image: url('Miles/img/user.svg'); background-repeat: no-repeat; background-position: 10px center; background-size: 18px; padding-left: 35px;" />
+					<input type="password" id="Mpass" placeholder="Password" style="background-image: url('Miles/img/password.svg'); background-repeat: no-repeat; background-position: 10px center; background-size: 18px; padding-left: 35px;" />
+					<hr class="prettyline">
+					<br>
+					<div class="btn-footer">
+ 						<button data-ml-close class="btn btn-secondary"><img src="Miles/img/close.png" class="btn-icon btn-close-icon" alt=""> Cancel</button>
+ 						<button data-login class="btn btn-memberlogin"><img src="Miles/img/login.png" class="btn-icon btn-login-icon" alt=""> Login</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="modal" data-dialog tabindex="-1">
+			<div class="modal-dialog">
+				<div class="header"></div>
+				<div class="progress-bar"></div>
+			</div>
+		</div>
+		<div class="modal" data-trial tabindex="-1">
+			<div class="modal-dialog">
+				<div class="header">Claim free trial</div>
+				<hr class="prettyline">
+				<br>
+				<div class="btn-footer">
+ 					<button data-trl-close class="btn btn-secondary"><img src="Miles/img/close.png" class="btn-icon btn-close-icon" alt=""> Cancel</button>
+					<button data-claim class="btn btn-primary">Claim</button>
+				</div>
+			</div>
+		</div>
+		<div class="modal" data-message tabindex="-1">
+   			<div class="modal-dialog">
+   				<div class="header"></div>
+   				<span id="message"></span>
+   				<br>
+   				<button data-msg-close class="btn btn-secondary"><img src="Miles/img/close.png" class="btn-icon btn-close-icon" alt=""> Okay</button>
+   			</div>
+   		</div>
+  		<div class="modal" data-deviceinfo tabindex="-1">
+  			<div class="modal-dialog">
+  				<div class="header">Device Information</div>
+  				<hr class="prettyline">
+  				<div id="deviceInfoBody">
+  					<table>
+   					<tbody>
+   							<tr>
+   								<td><p style="font-weight: 400;">IP Address:</p></td>
+   								<td><span id="devIp">--</span></td>
+   							</tr>
+   							<tr>
+   								<td><p style="font-weight: 400;">MAC Address:</p></td>
+   								<td><span id="devMac">--</span></td>
+   							</tr>
+   							<tr>
+   								<td><p style="font-weight: 400;">Voucher:</p></td>
+   								<td><span id="devVoucher">--</span></td>
+   							</tr>
+   							<tr>
+   								<td><p style="font-weight: 400;">Vendo:</p></td>
+   								<td><span id="devVendo">--</span></td>
+   							</tr>
+   							<tr>
+   								<td><p style="font-weight: 400;">SSID:</p></td>
+   								<td><span id="devSsid">--</span></td>
+   							</tr>
+   							<tr>
+   								<td><p style="font-weight: 400;">Remaining Time:</p></td>
+   								<td><span id="devTime">--</span></td>
+   							</tr>
+   							<tr>
+   								<td><p style="font-weight: 400;">Expiration:</p></td>
+   								<td><span id="devExpiration">--</span></td>
+   							</tr>
+   						</tbody>
+  					</table>
+  				</div>
+  				<br>
+  				<hr class="prettyline">
+  				<br>
+  				<div class="btn-footer">
+  					<button data-di-close class="btn btn-secondary"><img src="Miles/img/close.png" class="btn-icon btn-close-icon" alt=""> Close</button>
+  				</div>
+  			</div>
+  		</div>
+   	<!-- Hidden expiration element for JavaScript -->
+   	<span id="exp" style="display:none;">--</span>
+   	<br>
+   	<script>
+   	// Handle main.js loading error
+   	function handleMainJsError() {
+   	    var statusEl = document.getElementById('status');
+   	    if (statusEl) {
+   	        statusEl.textContent = 'No internet connection';
+   	        statusEl.style.color = '#ff6b6b';
+   	    }
+   	    // Hide timer display and remaining time label
+   	    var timerWrapper = document.getElementById('timerWrapper');
+   	    if (timerWrapper) timerWrapper.style.display = 'none';
+   	    // Hide member info
+   	    var memberInfo = document.getElementById('memberInfo');
+   	    if (memberInfo) memberInfo.style.display = 'none';
+   	    // Disable and hide all buttons
+   	    var buttons = document.querySelectorAll('button');
+   	    buttons.forEach(function(btn) {
+   	        btn.disabled = true;
+   	        btn.style.opacity = '0.5';
+   	        btn.style.pointerEvents = 'none';
+   	        btn.style.display = 'none';
+   	    });
+   	    // Hide button groups
+   	    var btnGroups = document.querySelectorAll('.btn-group');
+   	    btnGroups.forEach(function(group) { group.style.display = 'none'; });
+   	    // Hide GCash button if present
+   	    var gcashBtn = document.getElementById('gcashBtn_new');
+   	    if (gcashBtn) { gcashBtn.style.display = 'none'; }
+   	}
+   	</script>
+   	<script src="http://payments.wifree.network/widgetv2/juanfi/jquery.min.js"></script>
+	<script src="http://payments.wifree.network/widgetv2/juanfi/loadingoverlay.min.js"></script>
+	<script src="http://payments.wifree.network/widgetv2/juanfi/sweetalert2.js"></script>
+	<script src="http://payments.wifree.network/widgetv2/juanfi/ewalletvoucher.js"></script>
+  	<script src="Miles/js/main.js" onerror="handleMainJsError()"></script>
+ </body>
