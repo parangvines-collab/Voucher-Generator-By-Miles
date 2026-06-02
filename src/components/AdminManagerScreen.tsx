@@ -216,14 +216,19 @@ export function AdminManagerScreen() {
       }
       const mappedUsers: UserDatabase = {};
       if (!errProfiles && profiles) {
+        const seenUsernames = new Set<string>();
         profiles.forEach((p: any) => {
           if (p.username && p.username.trim() !== '' && p.username.toLowerCase() !== 'admin') {
-            mappedUsers[p.username] = {
-              password: p.password_plain || 'Secure Supabase Auth',
-              expiration: p.expiration || '',
-              balance: parseFloat(p.balance) || 0,
-              lastSeen: p.last_seen || undefined
-            };
+            const lowerUser = p.username.toLowerCase();
+            if (!seenUsernames.has(lowerUser)) {
+              seenUsernames.add(lowerUser);
+              mappedUsers[p.username] = {
+                password: p.password_plain || 'Secure Supabase Auth',
+                expiration: p.expiration || '',
+                balance: parseFloat(p.balance) || 0,
+                lastSeen: p.last_seen || undefined
+              };
+            }
           }
         });
         setUsers(mappedUsers);
@@ -389,6 +394,19 @@ export function AdminManagerScreen() {
     if (userExists) {
       setAddOperatorError('Username already exists in database.');
       return;
+    }
+
+    try {
+      const { data: existingProfiles, error: checkErr } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('username', trimUser);
+      if (!checkErr && existingProfiles && existingProfiles.length > 0) {
+        setAddOperatorError('Username already exists in database.');
+        return;
+      }
+    } catch (e: any) {
+      console.warn('Error checking username uniqueness:', e);
     }
 
     try {

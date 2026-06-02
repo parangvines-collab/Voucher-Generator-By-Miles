@@ -133,6 +133,20 @@ export function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
       return;
     }
 
+    // Direct case-insensitive uniqueness check against profiles table
+    try {
+      const { data: existingProfiles, error: checkErr } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('username', trimUser);
+      if (!checkErr && existingProfiles && existingProfiles.length > 0) {
+        setErrorMsg('Username is already taken by another operator.');
+        return;
+      }
+    } catch (e: any) {
+      console.warn('Error checking username uniqueness:', e);
+    }
+
     // Map input to email format for Supabase Auth consistency
     const email = trimUser.includes('@') ? trimUser : `${trimUser}@example.com`;
 
