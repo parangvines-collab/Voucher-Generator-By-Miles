@@ -290,7 +290,12 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
       // 2. User purchased device license keys
       const { data: keys, error: errKeys } = await supabase.from('portal_keys').select('*').eq('username', currentUser).order('date', { ascending: false });
       if (!errKeys && keys) {
-        const mappedKeys = keys.map((p: any) => ({ code: p.portal_key, serial: p.serial_number, date: p.date }));
+        const mappedKeys = keys.map((p: any) => ({
+          id: p.id,
+          code: p.portal_key || p.key,
+          serial: p.serial_number,
+          date: p.date
+        }));
         setUserPortalKeys(mappedKeys);
       }
 
@@ -1394,9 +1399,9 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
                   <span className="block text-slate-650 italic">No keys currently bought in this account.</span>
                 ) : (
                   userPortalKeys.map((el, idx) => (
-                    <div key={el.serial + idx} className="bg-slate-950/40 border border-slate-855 rounded p-2.5 space-y-1.5 text-[11px]">
+                    <div key={el.id || `${el.code}-${idx}`} className="bg-slate-950/40 border border-slate-855 rounded p-2.5 space-y-1.5 text-[11px]">
                       <div className="flex justify-between text-slate-500">
-                        <span>Serial: <code className="text-slate-300 font-mono font-bold">{el.serial}</code></span>
+                        <span>Serial: <code className="text-slate-300 font-mono font-bold">{el.serial || 'N/A'}</code></span>
                         <span>{new Date(el.date).toLocaleDateString()}</span>
                       </div>
                       <div className="flex items-center gap-1.5 mt-1 bg-slate-950 p-2 rounded border border-slate-850/80">

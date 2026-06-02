@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { ActivityLogger } from '../utils/activityDB';
 import { UserDatabase, CashInRequest, PortalKeyRequest, PromoHistoryItem } from '../types';
-import { generatePortalKeyFromSerial } from '../utils/voucherHelpers';
+import { generatePortalKeyFromSerial, tryDecodeSerialFromPortalKey } from '../utils/voucherHelpers';
 import { supabase } from '../supabaseClient';
 import { 
   Users, DollarSign, Send, Lock, FileSpreadsheet, 
-  Check, X, Eye, EyeOff, Calendar, PlusCircle, Trash, RefreshCw, KeyRound, Link,
+  Check, X, Eye, EyeOff, Calendar, PlusCircle, Trash, KeyRound, Link,
   Wifi, WifiOff, Smartphone, ExternalLink
 } from 'lucide-react';
 
@@ -170,6 +170,7 @@ export function AdminManagerScreen() {
       let sbBotToken = '';
       let sbChatId = '';
 
+      let localLastSeen: Record<string, string> = {};
       if (!errSettings && settings && settings.length > 0) {
         settings.forEach((s: any) => {
           if (s.key === 'admin_password') sbAdminPass = s.value;
@@ -193,6 +194,7 @@ export function AdminManagerScreen() {
             lastSeenData[uname] = s.value;
           }
         });
+        localLastSeen = lastSeenData;
         setLastSeenMap(lastSeenData);
       }
       setAdminPassword(sbAdminPass);
@@ -209,8 +211,11 @@ export function AdminManagerScreen() {
 
       // 2. Load Profiles / Operators
       const { data: profiles, error: errProfiles } = await supabase.from('profiles').select('*');
-      if (!errProfiles && profiles && profiles.length > 0) {
-        const mappedUsers: UserDatabase = {};
+      if (errProfiles) {
+        console.error('Error fetching profiles from Supabase:', errProfiles);
+      }
+      const mappedUsers: UserDatabase = {};
+      if (!errProfiles && profiles) {
         profiles.forEach((p: any) => {
           mappedUsers[p.username] = {
             password: p.password_plain || 'Secure Supabase Auth',
@@ -240,9 +245,10 @@ export function AdminManagerScreen() {
       const { data: pkr, error: errPkr } = await supabase.from('portal_keys').select('*').order('date', { ascending: false });
       if (!errPkr && pkr) {
         const mappedPkr: PortalKeyRequest[] = pkr.map((p: any) => ({
+          id: p.id,
           username: p.username,
           serialNumber: p.serial_number,
-          portalKey: p.portal_key,
+          portalKey: p.portal_key || p.key,
           status: p.status as 'approved',
           date: p.date
         }));
@@ -258,6 +264,67 @@ export function AdminManagerScreen() {
           date: p.date
         }));
         setPromoHistory(mappedPrh);
+      }
+
+      // 6. Auto-load and auto-heal missing profiles from active activity log entries
+      try {
+        const { data: logMappings, error: errLogs } = await supabase
+          .from('activity_logs')
+          .select('username, user_id')
+          .not('user_id', 'is', null);
+
+        if (!errLogs && logMappings && logMappings.length > 0) {
+          const foundMappings: Record<string, string> = {};
+          logMappings.forEach((item: any) => {
+            if (item.username && item.user_id && item.username !== 'admin') {
+              foundMappings[item.username] = item.user_id;
+            }
+          });
+
+          // Check for any usernames extracted from activity logs that are missing from profiles
+          const missingProfilesToHeal: { id: string; username: string; balance: number; expiration: null }[] = [];
+          let hasLocalUpdates = false;
+
+          Object.entries(foundMappings).forEach(([uname, uid]) => {
+            if (!mappedUsers[uname]) {
+              hasLocalUpdates = true;
+              mappedUsers[uname] = {
+                password: 'Secure Supabase Auth',
+                expiration: '',
+                balance: 0,
+                lastSeen: localLastSeen[uname] || undefined
+              };
+              missingProfilesToHeal.push({
+                id: uid,
+                username: uname,
+                balance: 0,
+                expiration: null
+              });
+            }
+          });
+
+          if (hasLocalUpdates) {
+            setUsers({ ...mappedUsers });
+          }
+
+          if (missingProfilesToHeal.length > 0) {
+            console.log('Background healing missing profiles rows in Supabase:', missingProfilesToHeal);
+            (async () => {
+              try {
+                const { error: healErr } = await supabase.from('profiles').upsert(missingProfilesToHeal);
+                if (healErr) {
+                  console.warn('Error healing missing user profiles:', healErr);
+                } else {
+                  console.log('Successfully completed background auto-heal of missing user profiles.');
+                }
+              } catch (err) {
+                console.warn('Auto-heal exception:', err);
+              }
+            })();
+          }
+        }
+      } catch (autoHealError) {
+        console.warn('Auto healing logic exception caught:', autoHealError);
       }
     } catch (err) {
       console.warn('Network issue or Supabase tables not initialized', err);
@@ -394,13 +461,12 @@ export function AdminManagerScreen() {
       }
 
       if (data && data.user) {
-        // 2. Create/update Profile extend fields manually to store default balance & plain password reference for Admin Manager
+        // 2. Create/update Profile extend fields manually to store default balance for Admin Manager
         await supabase.from('profiles').upsert([{
           id: data.user.id,
           username: trimUser,
           balance: 0,
-          expiration: null,
-          password_plain: newOperatorPass
+          expiration: null
         }]);
       }
     } catch (err: any) {
@@ -750,7 +816,8 @@ export function AdminManagerScreen() {
 
   // PortalKey managers
   const handleEditPortalKeySerial = async (req: PortalKeyRequest, idx: number) => {
-    const newSerial = await showPrompt(`Update MikroTik Serial`, `Update MikroTik Serial for ${req.username} (Regenerates Activation Key):`, req.serialNumber, 'MikroTik Board Serial Number');
+    const defaultSerial = req.serialNumber || '';
+    const newSerial = await showPrompt(`Update MikroTik Serial`, `Update MikroTik Serial for ${req.username} (Regenerates Activation Key):`, defaultSerial, 'MikroTik Board Serial Number');
     if (!newSerial || newSerial.trim() === '') return;
 
     const serialTrimmed = newSerial.trim().toUpperCase();
@@ -770,13 +837,22 @@ export function AdminManagerScreen() {
 
     // 1. Update in Supabase
     try {
-      await supabase.from('portal_keys')
-        .update({
-          serial_number: serialTrimmed,
-          portal_key: newKey
-        })
-        .eq('serial_number', req.serialNumber)
-        .eq('username', req.username);
+      if (req.id) {
+        await supabase.from('portal_keys')
+          .update({
+            serial_number: serialTrimmed,
+            portal_key: newKey
+          })
+          .eq('id', req.id);
+      } else {
+        await supabase.from('portal_keys')
+          .update({
+            serial_number: serialTrimmed,
+            portal_key: newKey
+          })
+          .eq('serial_number', req.serialNumber)
+          .eq('username', req.username);
+      }
     } catch (e) {
       console.warn('Could not update portal key in Supabase:', e);
       await showAlert('Error', 'Failed to update record on backend. Local copy may be out of sync.');
@@ -789,12 +865,17 @@ export function AdminManagerScreen() {
   };
 
     const handleDeletePortalKey = async (req: PortalKeyRequest) => {
-        const confirmed = await showConfirm('Delete Key Record', `Delete key record row for ${req.username} on serial ${req.serialNumber}?`);
+        const serialText = req.serialNumber || 'N/A';
+        const confirmed = await showConfirm('Delete Key Record', `Delete key record row for ${req.username} on serial ${serialText}?`);
         if (!confirmed) return;
 
         // 1. Delete from Supabase
         try {
-            await supabase.from('portal_keys').delete().eq('serial_number', req.serialNumber).eq('username', req.username);
+            if (req.id) {
+                await supabase.from('portal_keys').delete().eq('id', req.id);
+            } else {
+                await supabase.from('portal_keys').delete().eq('serial_number', req.serialNumber).eq('username', req.username);
+            }
         } catch (e) {
             console.warn('Could not delete portal key from Supabase:', e);
             await showAlert('Error', 'Failed to delete record from server. Local copy may be out of sync.');
@@ -832,7 +913,8 @@ export function AdminManagerScreen() {
 
   // Admin: Load PortalKey for any user
   const [portalKeyUser, setPortalKeyUser] = useState('');
-  const [portalKeySerial, setPortalKeySerial] = useState('');
+  const [portalKeyInputMode, setPortalKeyInputMode] = useState<'serial' | 'key'>('serial');
+  const [portalKeyInput, setPortalKeyInput] = useState('');
   const [portalKeyStatus, setPortalKeyStatus] = useState<{ success?: boolean; msg?: string }>({});
 
   const handleGeneratePortalKeyForUser = async (e: React.FormEvent) => {
@@ -843,21 +925,30 @@ export function AdminManagerScreen() {
       setPortalKeyStatus({ success: false, msg: 'Please select a user.' });
       return;
     }
-    if (!portalKeySerial.trim()) {
-      setPortalKeyStatus({ success: false, msg: 'Serial number is required.' });
+    if (!portalKeyInput.trim()) {
+      setPortalKeyStatus({ success: false, msg: 'Input is required.' });
       return;
     }
 
-    const serialTrimmed = portalKeySerial.trim().toUpperCase();
-    const generatedKey = generatePortalKeyFromSerial(serialTrimmed);
-    if (!generatedKey) {
-      setPortalKeyStatus({ success: false, msg: 'Invalid serial number format.' });
-      return;
+    let serialTrimmed = '';
+    let generatedKey = '';
+
+    if (portalKeyInputMode === 'serial') {
+      serialTrimmed = portalKeyInput.trim().toUpperCase();
+      generatedKey = generatePortalKeyFromSerial(serialTrimmed);
+      if (!generatedKey) {
+        setPortalKeyStatus({ success: false, msg: 'Invalid serial number format.' });
+        return;
+      }
+    } else {
+      generatedKey = portalKeyInput.trim().toUpperCase();
+      const decodedSerial = tryDecodeSerialFromPortalKey(generatedKey);
+      serialTrimmed = decodedSerial || '';
     }
 
     const confirmed = await showConfirm(
       'Generate PortalKey',
-      `Generate activation key for user "${portalKeyUser}"?\n\nSerial: ${serialTrimmed}\nKey: ${generatedKey}`,
+      `Generate activation key for user "${portalKeyUser}"?\n\n${serialTrimmed ? `Serial: ${serialTrimmed}\n` : ''}Key: ${generatedKey}`,
       'Generate',
       'Cancel'
     );
@@ -865,19 +956,45 @@ export function AdminManagerScreen() {
 
     try {
       const dateStr = new Date().toISOString();
-      await supabase.from('portal_keys').upsert([{
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id || null;
+      const basePayload: any = {
+        user_id: userId,
         username: portalKeyUser,
-        serial_number: serialTrimmed,
-        portal_key: generatedKey,
         status: 'approved',
         date: dateStr
-      }]);
-      ActivityLogger.logActivity('portalkey_generated', `Admin generated PortalKey for ${portalKeyUser}`, { username: portalKeyUser, serial: serialTrimmed });
+      };
+      if (serialTrimmed) {
+        basePayload.serial_number = serialTrimmed;
+      }
+
+      let insertError: any = null;
+      const keyValue = generatedKey;
+
+      const attempts: any[] = [
+        { ...basePayload, portal_key: keyValue },
+        { ...basePayload, key: keyValue }
+      ];
+
+      for (const attempt of attempts) {
+        const { error } = await supabase.from('portal_keys').insert([attempt]);
+        if (!error) {
+          insertError = null;
+          break;
+        }
+        insertError = error;
+      }
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      ActivityLogger.logActivity('portalkey_generated', `Admin generated PortalKey for ${portalKeyUser}`, { username: portalKeyUser, serial: serialTrimmed || 'custom_key', key: generatedKey });
       setPortalKeyStatus({ success: true, msg: `PortalKey generated successfully for ${portalKeyUser}!` });
-      setPortalKeySerial('');
+      setPortalKeyInput('');
       loadAllData();
-    } catch (e) {
-      setPortalKeyStatus({ success: false, msg: 'Failed to save PortalKey to database.' });
+    } catch (e: any) {
+      setPortalKeyStatus({ success: false, msg: `Failed to save: ${e?.message || 'Unknown error'}` });
       console.warn('Could not save portal key for user:', e);
     }
   };
@@ -1344,14 +1461,14 @@ export function AdminManagerScreen() {
                 </div>
               ) : (
                 portalKeyRequests.slice().reverse().map((req, idx) => (
-                  <div key={req.serialNumber + idx} className="bg-slate-950/40 border border-slate-855 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div key={req.id || (`${req.portalKey}-${idx}`)} className="bg-slate-950/40 border border-slate-855 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-100 text-sm">{req.username}</span>
                         <span className="text-[9px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded font-bold uppercase border border-emerald-500/25">PURCHASED</span>
                       </div>
                       <div className="text-xs text-slate-400 space-y-0.5 mt-1">
-                        <div>Router Serial: <strong className="text-slate-100 font-mono">{req.serialNumber}</strong></div>
+                        <div>Router Serial: <strong className="text-slate-100 font-mono">{req.serialNumber || 'N/A'}</strong></div>
                         <div>Generated Key: <strong className="text-emerald-400 font-mono text-xs select-all bg-emerald-500/5 p-1 rounded border border-emerald-500/10">{req.portalKey}</strong></div>
                         <div className="text-[10px] text-slate-550">{new Date(req.date).toLocaleString()}</div>
                       </div>
@@ -1579,12 +1696,34 @@ export function AdminManagerScreen() {
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold uppercase tracking-wider text-[10px]">Router Serial Number</label>
+                <label className="block text-slate-400 mb-1 font-semibold uppercase tracking-wider text-[10px]">Input Mode</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setPortalKeyInputMode('serial'); setPortalKeyInput(''); }}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all border ${portalKeyInputMode === 'serial' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-850 border-slate-800 text-slate-300 hover:bg-slate-800'}`}
+                  >
+                    Serial Number
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setPortalKeyInputMode('key'); setPortalKeyInput(''); }}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all border ${portalKeyInputMode === 'key' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-850 border-slate-800 text-slate-300 hover:bg-slate-800'}`}
+                  >
+                    PortalKey
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold uppercase tracking-wider text-[10px]">
+                  {portalKeyInputMode === 'serial' ? 'Router Serial Number' : 'PortalKey Code'}
+                </label>
                 <input
                   type="text"
-                  placeholder="Enter MikroTik serial (e.g. ABC123DEF)"
-                  value={portalKeySerial}
-                  onChange={(e) => setPortalKeySerial(e.target.value)}
+                  placeholder={portalKeyInputMode === 'serial' ? 'Enter MikroTik serial (e.g. ABC123DEF)' : 'Enter PortalKey directly (e.g. ABCD-EFGH-IJKL-MNOP)'}
+                  value={portalKeyInput}
+                  onChange={(e) => setPortalKeyInput(e.target.value)}
                   className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 font-mono"
                 />
               </div>

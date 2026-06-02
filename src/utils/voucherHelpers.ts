@@ -99,3 +99,15 @@ export function exportToCSVContent(vouchers: Voucher[]): string {
   });
   return csv;
 }
+
+/**
+ * Attempts to decode/extract a serial number from a given portal key.
+ * Since the original generator is a one-way LCG hash, we cannot mathematically
+ * reverse it 100% of the time, but we define this function cleanly to return null
+ * when a serial number is not derivable from the portal key syntax.
+ */
+export function tryDecodeSerialFromPortalKey(portalKey: string): string | null {
+  if (!portalKey) return null;
+  // Non-invertible hash fallback
+  return null;
+}

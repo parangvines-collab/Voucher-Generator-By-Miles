@@ -65,7 +65,22 @@ export function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
         throw error;
       }
 
-
+      // Auto-heal profiles if missing in public profiles list
+      if (data && data.user) {
+        try {
+          const { data: prof, error: errProf } = await supabase.from('profiles').select('id').eq('username', trimUser);
+          if (errProf || !prof || prof.length === 0) {
+            await supabase.from('profiles').upsert([{
+              id: data.user.id,
+              username: trimUser,
+              balance: 0,
+              expiration: null
+            }]);
+          }
+        } catch (profileErr) {
+          console.warn('Auto-healing profile error:', profileErr);
+        }
+      }
 
       sessionStorage.setItem('authenticated', 'true');
       sessionStorage.setItem('username', trimUser);
@@ -128,7 +143,19 @@ export function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
         throw error;
       }
 
-
+      // Create a profile entry in the profiles table for custom fields (balance, etc.)
+      if (data && data.user) {
+        try {
+          await supabase.from('profiles').upsert([{
+            id: data.user.id,
+            username: trimUser,
+            balance: 0,
+            expiration: null
+          }]);
+        } catch (profileErr) {
+          console.warn('Error creating profile entry on self-registration:', profileErr);
+        }
+      }
 
       ActivityLogger.logActivity('user_registered', 'New user registered via Supabase', { username: trimUser });
       setSuccessMsg('Account created successfully! Redirecting...');

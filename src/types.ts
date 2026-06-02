@@ -26,6 +26,7 @@ export interface CashInRequest {
 }
 
 export interface PortalKeyRequest {
+  id?: string;
   username: string;
   serialNumber: string;
   portalKey: string;
@@ -34,6 +35,7 @@ export interface PortalKeyRequest {
 }
 
 export interface PortalKeyRecord {
+  id?: string;
   code: string;
   serial: string;
   date: string;
