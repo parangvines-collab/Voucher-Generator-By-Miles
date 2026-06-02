@@ -761,9 +761,16 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
       console.warn('Clipboard copy failed:', e);
     }
 
-    // Redirect or launch GCash App via deep link URL scheme
+    // Redirect or launch GCash App with device-appropriate deep link mechanism
     setTimeout(() => {
-      window.location.href = 'gcash://';
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      if (isAndroid) {
+        // Use standard Android Intent scheme for com.globe.gcash.android to robustly open the app
+        window.location.href = 'intent://#Intent;scheme=gcash;package=com.globe.gcash.android;end';
+      } else {
+        // Fallback or iOS default
+        window.location.href = 'gcash://';
+      }
     }, 400);
   };
 
