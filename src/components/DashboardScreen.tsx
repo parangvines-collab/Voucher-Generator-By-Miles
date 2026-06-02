@@ -419,15 +419,19 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData?.session?.user?.id || null;
-      await supabase.from('promo_history').insert([{
+      const { error: insertErr } = await supabase.from('promo_history').insert([{
         user_id: userId,
         username: currentUser,
         price: finalPromoPrice,
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
+        promo_name: '1-Month Activation',
+        duration_days: 30
       }]);
+      if (insertErr) {
+        console.error('Failed to insert promo history into Supabase:', insertErr);
+      }
     } catch (e) {
       console.error('Failed to insert promo history into Supabase:', e);
-      // We'll still continue since we have local storage fallback
     }
 
 
