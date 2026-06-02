@@ -231,6 +231,7 @@ export function AdminManagerScreen() {
       const { data: cir, error: errCir } = await supabase.from('cash_in_requests').select('*').order('date', { ascending: false });
       if (!errCir && cir) {
         const mappedCir: CashInRequest[] = cir.map((c: any) => ({
+          userId: c.user_id,
           username: c.username,
           refNumber: c.ref_number,
           amount: parseFloat(c.amount) || 0,
@@ -266,66 +267,7 @@ export function AdminManagerScreen() {
         setPromoHistory(mappedPrh);
       }
 
-      // 6. Auto-load and auto-heal missing profiles from active activity log entries
-      try {
-        const { data: logMappings, error: errLogs } = await supabase
-          .from('activity_logs')
-          .select('username, user_id')
-          .not('user_id', 'is', null);
 
-        if (!errLogs && logMappings && logMappings.length > 0) {
-          const foundMappings: Record<string, string> = {};
-          logMappings.forEach((item: any) => {
-            if (item.username && item.user_id && item.username !== 'admin') {
-              foundMappings[item.username] = item.user_id;
-            }
-          });
-
-          // Check for any usernames extracted from activity logs that are missing from profiles
-          const missingProfilesToHeal: { id: string; username: string; balance: number; expiration: null }[] = [];
-          let hasLocalUpdates = false;
-
-          Object.entries(foundMappings).forEach(([uname, uid]) => {
-            if (!mappedUsers[uname]) {
-              hasLocalUpdates = true;
-              mappedUsers[uname] = {
-                password: 'Secure Supabase Auth',
-                expiration: '',
-                balance: 0,
-                lastSeen: localLastSeen[uname] || undefined
-              };
-              missingProfilesToHeal.push({
-                id: uid,
-                username: uname,
-                balance: 0,
-                expiration: null
-              });
-            }
-          });
-
-          if (hasLocalUpdates) {
-            setUsers({ ...mappedUsers });
-          }
-
-          if (missingProfilesToHeal.length > 0) {
-            console.log('Background healing missing profiles rows in Supabase:', missingProfilesToHeal);
-            (async () => {
-              try {
-                const { error: healErr } = await supabase.from('profiles').upsert(missingProfilesToHeal);
-                if (healErr) {
-                  console.warn('Error healing missing user profiles:', healErr);
-                } else {
-                  console.log('Successfully completed background auto-heal of missing user profiles.');
-                }
-              } catch (err) {
-                console.warn('Auto-heal exception:', err);
-              }
-            })();
-          }
-        }
-      } catch (autoHealError) {
-        console.warn('Auto healing logic exception caught:', autoHealError);
-      }
     } catch (err) {
       console.warn('Network issue or Supabase tables not initialized', err);
     }
@@ -747,13 +689,62 @@ export function AdminManagerScreen() {
 
     // 2. Credit balance to user in Supabase profiles
     try {
-      const { data: profData } = await supabase.from('profiles').select('id, balance').eq('username', req.username).single();
+      let profData = null;
+
+      // Try 1: By user_id if present
+      if (req.userId) {
+        const res = await supabase.from('profiles').select('id, balance, username').eq('id', req.userId).single();
+        if (res.data) {
+          profData = res.data;
+        }
+      }
+
+      // Try 2: By username exact case match
+      if (!profData) {
+        const res = await supabase.from('profiles').select('id, balance, username').eq('username', req.username).single();
+        if (res.data) {
+          profData = res.data;
+        }
+      }
+
+      // Try 3: By username case-insensitive match (using ilike)
+      if (!profData) {
+        const res = await supabase.from('profiles').select('id, balance, username').ilike('username', req.username).single();
+        if (res.data) {
+          profData = res.data;
+        }
+      }
+
+      // Try 4: Retrieve all profiles and do case-insensitive match client-side (ultimate foolproof fallback)
+      if (!profData) {
+        const res = await supabase.from('profiles').select('id, balance, username');
+        if (res.data && res.data.length > 0) {
+          const matched = res.data.find(
+            (p: any) => p.username && p.username.toLowerCase() === req.username.toLowerCase()
+          );
+          if (matched) {
+            profData = matched;
+          }
+        }
+      }
+
       if (profData) {
-        const newBalance = (parseFloat(profData.balance) || 0) + amountNum;
-        await supabase.from('profiles').update({ balance: newBalance }).eq('id', profData.id);
+        const currentBalance = typeof profData.balance === 'number' ? profData.balance : parseFloat(profData.balance) || 0;
+        const newBalance = currentBalance + amountNum;
+        const { error: updateErr } = await supabase.from('profiles').update({ balance: newBalance }).eq('id', profData.id);
+        if (updateErr) {
+          console.error("Error updating profile balance:", updateErr);
+          await showAlert('Error', 'Profile balance update failed: ' + updateErr.message);
+        } else {
+          console.log(`Successfully credited ${amountNum} PHP to ${profData.username} (ID: ${profData.id}). New balance: ${newBalance}`);
+        }
+      } else {
+        console.error("Target profile not found for automatic cash-in credit of operator:", req.username);
+        await showAlert('Profile Not Found', `We could not find a database profile matching username "${req.username}" to automatically credit the balance to.`);
       }
     } catch (e: any) {
       console.warn('Could not credit target operator balance in Supabase:', e);
+      await showAlert('Error', 'Exception while crediting balance: ' + (e.message || e));
     }
 
     ActivityLogger.logActivity('cash_in_approved', `Approved cash-in balance load for ${req.username}`, { username: req.username, amount: amountNum, ref: req.refNumber });

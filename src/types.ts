@@ -17,6 +17,7 @@ export interface ActivityLog {
 }
 
 export interface CashInRequest {
+  userId?: string;
   username: string;
   refNumber: string;
   amount: number;
