@@ -1,6 +1,6 @@
 {
     "Settings" : {
-        "vendo_option"          :   0,
+        "vendo_option"          :   2,
         "username_only"         :   true,
         "currency"              :   "₱",
         "footer_text"           :   "Miles",
@@ -13,10 +13,10 @@
         "trial_logout_button"   :   true,
         "subscription"          :   true,
         "internet_status"       :   true,
-        "ewallet_enabled"       :   false,
+        "ewallet_enabled"       :   true,
         "member_login"          :   true,
         "wifi_rates_show"       :   true,
-        "wifi_rates_offline"    :   false,
+        "wifi_rates_offline"    :   true,
         "mikhmon"               :   false,
         "theme"                 :   "auto"
     },
@@ -29,7 +29,7 @@
         { "amount": "₱ 50", "time": "3D", "validity": "3D:2M" }
     ],
 
-    "portalKey" : "XXXXX-XXXXX-XXXXX-XXXXX",
+    "portalKey" : "QQ2YY-E2UMI-EUI26-IAY2Y",
     "mac_binding" : false,
     "subscription_prefix" : ["ME", "Vc", "MO", "Ec"],
 
