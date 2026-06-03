@@ -3,8 +3,8 @@
 /* ============================= */
 
 @font-face {
-    font-family: 'https://www.milesportal.online/Enhanced/close.png';
-    src: url('https://www.milesportal.online/Enhanced/close.png') format('truetype');
+    font-family: 'https://www.milesportal.online/Enhanced/font.ttf';
+    src: url('https://www.milesportal.online/Enhanced/font.ttf') format('truetype');
     font-weight: normal;
     font-style: normal;
 }
@@ -43,7 +43,7 @@ body.modal-active{overflow:hidden;}
 .row{max-width:360px;margin:20px auto;padding:15px;background:transparent;margin-top: -25px;border-radius:8px;}
 
 /* TIMER */
-.time-wrapper{font-family: 'https://www.milesportal.online/Enhanced/close.png', sans-serif;font-weight: 400;font-size:22px;
+.time-wrapper{font-family: 'https://www.milesportal.online/Enhanced/font.ttf', sans-serif;font-weight: 400;font-size:22px;
     line-height: 1;color:#fff;margin-top: 10px;margin-bottom:10px;border: 1px solid #325370;border-radius: 10px;padding: 10px;
     display: flex;
     flex-direction: column;
@@ -163,7 +163,7 @@ body.modal-active{overflow:hidden;}
 }
 
 /* STATUS */
-#status{font-family: 'https://www.milesportal.online/Enhanced/close.png', sans-serif;font-weight: 400;font-size: 39px;transition: color 0.08s ease;letter-spacing: 1px;will-change: color;
+#status{font-family: 'https://www.milesportal.online/Enhanced/font.ttf', sans-serif;font-weight: 400;font-size: 39px;transition: color 0.08s ease;letter-spacing: 1px;will-change: color;
     display: inline-block;padding: 8px 20px;border-radius: 10px;position: relative;text-align: center;text-transform: uppercase;text-shadow: 0 2px 2px rgba(0,0,0,0.5);}
 #status.connected{color: var(--success);}
 #status.paused{color: var(--warning);}
@@ -181,7 +181,7 @@ body.modal-active{overflow:hidden;}
 
 /* BUTTONS */
 .btn{
-    font-family: 'https://www.milesportal.online/Enhanced/close.png', sans-serif;
+    font-family: 'https://www.milesportal.online/Enhanced/font.ttf', sans-serif;
     width:100%;height:45px;margin:5px 0;font-weight: 400;font-size: 1.2rem;
     line-height: 1;
     text-transform: uppercase;letter-spacing: 1px;padding: 0.5rem 1rem;
@@ -244,7 +244,7 @@ body.modal-active{overflow:hidden;}
 .input-group .submit:last-child{border-top-right-radius:25px;border-bottom-right-radius:25px;border-top-left-radius:0;border-bottom-left-radius:0;}
 
 .submit{
-    font-family: 'https://www.milesportal.online/Enhanced/close.png', sans-serif;font-weight: 400;font-size: 1.2rem;
+    font-family: 'https://www.milesportal.online/Enhanced/font.ttf', sans-serif;font-weight: 400;font-size: 1.2rem;
     line-height: 1;
     text-transform: uppercase;letter-spacing: 1px;padding: 0.5rem 1rem;
     border: 1px solid #133a5c;border-radius: 25px;cursor: pointer;width:110px;
@@ -276,10 +276,10 @@ thead{padding:6px;border-bottom:1px solid var(--border);}
     0% { opacity: 0; transform: scale(0.9) translateY(20px); }
     100% { opacity: 1; transform: scale(1) translateY(0); }
 }
-.modal .header{font-family: 'https://www.milesportal.online/Enhanced/close.png', sans-serif;font-weight: 400;margin-bottom:15px;color: #d6e7f5;text-shadow: 0 2px 2px rgba(0,0,0,0.5);font-size: 20px;}
-.modal #totalTime,.modal #validity,.modal #message,.modal td p,.modal td,.modal thead td{color: #d6e7f5;font-family: 'https://www.milesportal.online/Enhanced/close.png', sans-serif;font-weight: 400;font-size: 15px;}
+.modal .header{font-family: 'https://www.milesportal.online/Enhanced/font.ttf', sans-serif;font-weight: 400;margin-bottom:15px;color: #d6e7f5;text-shadow: 0 2px 2px rgba(0,0,0,0.5);font-size: 20px;}
+.modal #totalTime,.modal #validity,.modal #message,.modal td p,.modal td,.modal thead td{color: #d6e7f5;font-family: 'https://www.milesportal.online/Enhanced/font.ttf', sans-serif;font-weight: 400;font-size: 15px;}
 .modal input{width:100%;height:40px;margin:5px 0;border: 1px solid #325370;border-radius:5px;background:#151515;color:#fff;padding:8px;}
-.modal .btn{font-family: 'https://www.milesportal.online/Enhanced/close.png', sans-serif;}
+.modal .btn{font-family: 'https://www.milesportal.online/Enhanced/font.ttf', sans-serif;}
 
 /* MARQUEE - Smooth scrolling text */
 .marquee-container {
@@ -294,7 +294,7 @@ thead{padding:6px;border-bottom:1px solid var(--border);}
 
 .marquee-content {
     display: inline-block;
-    font-family: 'https://www.milesportal.online/Enhanced/close.png', sans-serif;
+    font-family: 'https://www.milesportal.online/Enhanced/font.ttf', sans-serif;
     font-weight: 400;
     font-size: 20px;
     color: #004f80;
@@ -354,26 +354,26 @@ thead{padding:6px;border-bottom:1px solid var(--border);}
 .rates-preview table {
     font-size: 13px;
     color: var(--primary);
-    font-family: 'https://www.milesportal.online/Enhanced/close.png', sans-serif;
+    font-family: 'https://www.milesportal.online/Enhanced/font.ttf', sans-serif;
 }
 
 .rates-preview td {
     padding: 3px 4px;
     color: var(--primary);
-    font-family: 'https://www.milesportal.online/Enhanced/close.png', sans-serif;
+    font-family: 'https://www.milesportal.online/Enhanced/font.ttf', sans-serif;
     font-weight: 400;
 }
 
 .rates-preview thead td {
     font-weight: 400;
     color: var(--primary);
-    font-family: 'https://www.milesportal.online/Enhanced/close.png', sans-serif;
+    font-family: 'https://www.milesportal.online/Enhanced/font.ttf', sans-serif;
 }
 
 .rates-preview tbody td {
     color: var(--primary);
     font-weight: 400;
-    font-family: 'https://www.milesportal.online/Enhanced/close.png', sans-serif;
+    font-family: 'https://www.milesportal.online/Enhanced/font.ttf', sans-serif;
 }
 
 /* FOOTER */
@@ -517,7 +517,7 @@ footer{font-size:14px;
    font-size: 28px;
    font-weight: 400;
    color: #fff;
-   font-family: 'https://www.milesportal.online/Enhanced/close.png', sans-serif;
+   font-family: 'https://www.milesportal.online/Enhanced/font.ttf', sans-serif;
 }
 
 @keyframes coinPulse {
@@ -738,7 +738,7 @@ body.dark-mode .rates-preview td {
     text-transform: uppercase;
     letter-spacing: 1px;
     text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-    font-family: 'https://www.milesportal.online/Enhanced/close.png', sans-serif;
+    font-family: 'https://www.milesportal.online/Enhanced/font.ttf', sans-serif;
 }
 
 body.dark-mode .rates-preview-header {
