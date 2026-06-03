@@ -1,0 +1,1644 @@
+var _0x5873e6 = _0xa071;
+// Pre-cache decoded strings for faster execution
+var _0x5873e6Cache = {};
+var _0x5873e6Cached = function(idx) {
+    if (_0x5873e6Cache[idx] !== undefined) return _0x5873e6Cache[idx];
+    var result = _0x5873e6(idx);
+    _0x5873e6Cache[idx] = result;
+    return result;
+};
+!function() {
+    for (var t = _0xa071, n = _0x486d(); ; )
+        try {
+            if (777682 == -parseInt(t(663)) * (-parseInt(t(602)) / 2) + parseInt(t(594)) / 3 + -parseInt(t(542)) / 4 + -parseInt(t(618)) / 5 + -parseInt(t(525)) / 6 * (-parseInt(t(435)) / 7) + -parseInt(t(653)) / 8 + parseInt(t(470)) / 9 * (-parseInt(t(482)) / 10))
+                break;
+            n.push(n.shift())
+        } catch (o) {
+            n.push(n.shift())
+        }
+}();
+// Set encoded URLs for portal footer
+var encodedDevLink = "aHR0cHM6Ly93d3cuZmFjZWJvb2suY29tL2Vucmljby5mZXJyaS44ODU2Lw==";
+var voucher = getStorageValue("activeVoucher")
+  , activeMac = getStorageValue(_0x5873e6(612))
+  , tempMac = getStorageValue("tempMac")
+  , invalidUser = getStorageValue(_0x5873e6(614))
+  , insertcoinbg = new Audio
+  , coinCount = new Audio
+  , dateNow = Date.now()
+  , totalCoinReceived = 0
+  , extendTimeCriteria = 0
+  , vcTopUp = !1
+  , voucherToConvert = ""
+  , macVoucher = ""
+, vendorIpAddress = ""
+   , currency = ""
+   , apiStatus = ""
+   , ipAddress = ""
+   , mac = ""
+   , macNoColon = ""
+   , internet_status = ""
+   , intervalID = null
+   , timer = null
+   , insertingCoin = !1
+   , username_only = !1
+   , pause = !1
+   , trial = !1
+   , unlimited = !1
+   , randomtempMac = !1
+   , prefix = !1
+   , coinslotExit = !1
+, pause_button = !0
+    , member_logout_button = !0
+    , member_login = !0
+    , trial_logout_button = !0
+    , wifi_rates_show = !0
+    , insert_coin = !0
+   , subscription = !1
+   , subscription_prefix = []
+   , mikhmon = !1
+  , body = document[_0x5873e6Cached(492)]("body")
+  , interfaceName = body[_0x5873e6Cached(516)][_0x5873e6Cached(502)]
+  , icmodal = document[_0x5873e6Cached(540)](_0x5873e6Cached(475))
+  , insertBtn = document[_0x5873e6Cached(492)](_0x5873e6Cached(558))
+  , svmodal = document[_0x5873e6Cached(540)](_0x5873e6Cached(644))
+  , pauseBtn = document.getElementById(_0x5873e6Cached(415))
+  , dialog = document[_0x5873e6Cached(540)]("[data-dialog]")
+  , trlmodal = document[_0x5873e6Cached(540)]("[data-trial]")
+  , ssid = document.querySelector(_0x5873e6Cached(556))
+  , vendor = document.querySelector(_0x5873e6Cached(534))
+  , icVendo = icmodal.querySelector("[data-vendo]")
+  , selectVendo = document[_0x5873e6Cached(492)](_0x5873e6Cached(560))
+   , link = document[_0x5873e6Cached(492)]("link")
+   , body = document[_0x5873e6Cached(492)]("body")
+   , marqueeText = document.querySelector("[data-marquee-text]");
+var portalKey = "";
+
+
+// MAC Address Binding - One MAC per device
+var macBindingEnabled = true;
+var as = true;
+function getStoredMacForVoucher(voucher) {
+    if (localStorage) {
+        return localStorage.getItem('voucher_mac_' + voucher);
+    }
+    return null;
+}
+function setStoredMacForVoucher(voucher, mac) {
+    if (localStorage) {
+        localStorage.setItem('voucher_mac_' + voucher, mac);
+    }
+}
+function checkMacBinding(voucher, currentMac) {
+    if (!macBindingEnabled) return true;
+    if (!voucher || !currentMac) return true;
+    
+    var storedMac = getStoredMacForVoucher(voucher);
+    if (!storedMac) {
+        // First time using this voucher - store the MAC
+        setStoredMacForVoucher(voucher, currentMac);
+        return true;
+    }
+    // Check if MAC matches
+    return storedMac.toLowerCase() === currentMac.toLowerCase();
+}
+
+function validatePortalKey(key) {
+    if (!key || key.trim() === '') return false;
+    var pattern = /^[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$/;
+    if (!pattern.test(key.trim())) return false;
+    // Reject all-X placeholder pattern without exposing literal
+    if (/^X{5}(-X{5}){3}$/.test(key.trim())) return false;
+    return true;
+}
+function disableButtons() {
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(btn => {
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.pointerEvents = 'none';
+        btn.style.display = 'none';
+    });
+    const btnGroups = document.querySelectorAll('.btn-group');
+    btnGroups.forEach(group => { group.style.display = 'none'; });
+    const gcashBtn = document.getElementById('gcashBtn_new');
+    if (gcashBtn) { gcashBtn.style.display = 'none'; }
+}
+function enableButtons() {
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(btn => {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = 'auto';
+        btn.style.display = '';
+    });
+    const btnGroups = document.querySelectorAll('.btn-group');
+    btnGroups.forEach(group => { group.style.display = ''; });
+    const gcashBtn = document.getElementById('gcashBtn_new');
+    if (gcashBtn) { gcashBtn.style.display = 'inline-block'; }
+}
+function generatePortalKey(input) {
+    var hash = 0;
+    for (var i = 0; i < input.length; i++) {
+        var char = input.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    var result = '';
+    var seed = Math.abs(hash);
+    for (var i = 0; i < 20; i++) {
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+        result += chars.charAt(seed % chars.length);
+    }
+    return result.substring(0, 5) + '-' + result.substring(5, 10) + '-' + result.substring(10, 15) + '-' + result.substring(15, 20);
+}
+function resetMemberDisplay() {
+    // Hide member info and show timer display when not in member session
+    var memberInfo = document.getElementById('memberInfo');
+    var timerDisplay = document.getElementById('timerDisplay');
+    var memberNameEl = document.getElementById('memberName');
+    var ratesBtn = document.getElementById('ratesBtn');
+    if (memberInfo) memberInfo.style.display = 'none';
+    if (timerDisplay) timerDisplay.style.display = 'flex';
+    if (memberNameEl) memberNameEl.textContent = '--';
+    if (ratesBtn) ratesBtn.style.display = wifi_rates_show ? '' : 'none';
+}
+var ajaxsettings = new XMLHttpRequest;
+function api() {
+    var t = _0x5873e6
+      , n = document.getElementById("exp")
+      , o = document[t(492)](t(589))
+      , a = document[t(492)](t(468))
+      , i = document.getElementById("memberBtn")
+      , r = document.getElementById("userID")
+       , s = new XMLHttpRequest;
+     if (!member_login && i) i.style.setProperty('display', 'none', 'important');
+     s[t(660)]("GET", "/api", !0),
+    s.send(),
+    s[t(569)] = function() {
+        var s, $ = t;
+        4 == this[$(584)] && (200 == this[$(589)] ? (mac = (s = JSON.parse(this[$(530)])).mac,
+        macNoColon = replaceAll(mac, ":"),
+        ipAddress = s.ip,
+        o[$(472)] = s[$(589)],
+        apiStatus = s[$(589)],
+        null != voucher && "" != voucher || (voucher = macNoColon),
+        insertingCoin ? (n[$(472)] = "Loading...",
+        setTimeout(function() {
+            getValidity(1)
+        }, 200)) : getData(1),
+s[$(589)] == $(596) ? ("yes" == s[$(436)] && setTimeout(function() {
+            openModal(trlmodal)
+        }, 100),
+        null !== getCookie($(421)) && (a.innerHTML = getCookie($(421)),
+        o[$(472)] = "Time Paused",
+        pauseBtn.style.display = "block"),
+        pauseBtn[$(472)] = "Resume",
+        pause = !0,
+        restoreTimerDisplay(getCookie($(421))),
+        tempMac !== mac && null !== tempMac && (randomtempMac = !0),
+        insertBtn[$(420)][$(434)] = $(416),
+        insertBtn[$(472)] = "Extend Time",
+intervalManager(0),
+         i[$(420)][$(434)] = $(416),
+         body[$(420)][$(503)] = $(469)) : "Connected" == s[$(589)] && (voucher = s.voucher,
+         s[$(455)] !== $(436) && setStorageValue($(458), voucher),
+         null !== getCookie($(421)) && eraseCookie($(421)),
+         removeStorageValue($(614)),
+         i[$(420)][$(434)] = $(464),
+         i[$(420)][$(503)] = $(464),
+         setStorageValue($(535), mac),
+         pause = !1,
+         o[$(472)] = $(657),
+         null != activeMac && null != activeMac || setStorageValue($(612), mac),
+pause_button ? prefix || (pauseBtn.style.display = "block",
+          pauseBtn[$(420)][$(434)] = "auto",
+          pauseBtn[$(472)] = "Pause") : (pauseBtn[$(420)][$(503)] = $(464),
+          pauseBtn[$(420)][$(434)] = $(464)),
+         insertBtn[$(420)][$(434)] = $(416),
+         insertBtn[$(472)] = "Extend Time",
+         subscription && (0 === voucher[$(466)](subscription_prefix[0]) || 0 === voucher[$(466)](subscription_prefix[1]) || 0 === voucher[$(466)](subscription_prefix[2]) || 0 === voucher[$(466)](subscription_prefix[3]) && voucher[$(609)] < 12) && (insertBtn[$(420)][$(503)] = $(464),
+         pauseBtn[$(420)][$(503)] = $(464),
+         prefix = !0,
+         document.querySelector($(520))[$(420)][$(503)] = $(464),
+         i[$(420)][$(503)] = $(464),
+         document.getElementById('memberInfo') && (document.getElementById('memberInfo').style.display = 'flex'),
+         document.getElementById('timerDisplay') && (document.getElementById('timerDisplay').style.display = 'none'),
+         document.getElementById('memberName') && voucher && (document.getElementById('memberName').textContent = voucher),
+         document.getElementById('gcashBtn_new') && (document.getElementById('gcashBtn_new').style.display = 'none'),
+         document.querySelector('#timerWrapper small') && (document.querySelector('#timerWrapper small').style.display = 'none'),
+         a[$(567)] = $(593)),
+        null != s[$(598)] || prefix ? s.loginBy == $(436) || voucher == "T-" + mac ? (intervalManager(!0, animate, 1e3),
+        trial = !0,
+        insertBtn[$(420)][$(503)] = $(464),
+        document.querySelector($(520))[$(420)][$(503)] = $(464),
+        trial_logout_button ? (pauseBtn[$(420)][$(503)] = $(469),
+        pauseBtn[$(420)][$(434)] = "auto",
+        pauseBtn[$(472)] = $(621)) : pauseBtn.style[$(503)] = $(464)) :         prefix || (intervalManager(!0, animate, 1e3),
+        a[$(567)] = secondsToDhms(s[$(598)])) : (unlimited = !0,
+        intervalManager(0),
+        a[$(567)] = $(582),
+        document.getElementById('memberInfo') && (document.getElementById('memberInfo').style.display = 'flex'),
+        document.getElementById('timerDisplay') && (document.getElementById('timerDisplay').style.display = 'none'),
+        document.getElementById('memberName') && voucher && (document.getElementById('memberName').textContent = voucher),
+        insertBtn.style.display = $(464),
+        // Hide Wifi Rates button for members
+        document.getElementById('ratesBtn').style.display = 'none',
+        // Hide E-wallet button for members
+        document.getElementById('gcashBtn_new').style.display = 'none',
+        // Hide Remaining Time label for members
+        document.querySelector('#timerWrapper small').style.display = 'none',
+        // Hide estimated expiration for members (keep IP and MAC visible)
+        document.getElementById('Exp') && (document.getElementById('Exp').style.display = 'none'),
+        member_logout_button ? (pauseBtn.style.display = "block",
+        pauseBtn.style[$(434)] = "auto",
+        pauseBtn[$(472)] = $(621)) : pauseBtn.style.display = "none",
+        document[$(540)]($(520)).style[$(503)] = "none"),
+        body[$(420)][$(503)] = $(469)),
+        voucher != macNoColon && (voucher == "T-" + mac ? r[$(567)] = "<td><p><b>User:</b></td><td><b>TRIAL</b></td>" : r.innerHTML = $(564) + voucher + "</span></td>")) : body[$(420)][$(503)] = "block")
+    }
+}
+function getInternetStatus(t, n, o, a) {
+    var i = _0x5873e6
+      , r = document.getElementById("ratesBtn")
+      , s = document[i(540)](i(553))
+      , insBtn = document.getElementById("insertBtn")
+      , $ = new XMLHttpRequest;
+    $[i(660)](i(630), "internetstatus.txt", !0),
+    $[i(588)]("Expires", i(413)),
+    $[i(588)](i(655), i(411)),
+    $[i(569)] = function() {
+        var $, l = i;
+        4 != this.readyState || 200 != this.status || ($ = this[l(530)]) == l(633) && (openModal(s),
+        s[l(540)](l(515))[l(472)] = o,
+        document[l(540)](l(462))[l(472)] = a,
+        t || (internet_status = $,
+        r.style[l(434)] = l(416),
+        insBtn && (insBtn.style.display = "none")),
+        n && null !== intervalID && paused(300))
+    }
+    ,
+    $[i(431)]()
+}
+function getValidity(t) {
+    var n, o, a = _0x5873e6, i = document.getElementById(a(533));
+    5 < t ? i[a(472)] = a(554) : (n = null == activeMac || null == activeMac ? macNoColon : replaceAll(activeMac, ":"),
+    (o = new XMLHttpRequest)[a(660)](a(630), a(537) + n + a(603), !0),
+    o[a(588)](a(643), a(413)),
+    o[a(588)](a(655), a(411)),
+    o[a(431)](),
+    o[a(569)] = function() {
+        var n, o, r = a;
+        4 == this[r(584)] && (200 == this[r(589)] ? (o = (n = this[r(530)])[r(474)]("#"),
+        i[r(472)] = o[1],
+         200 < n.length && (i[r(472)] = r(629),
+        setTimeout(function() {
+            getValidity(t + 1)
+        }, 1e3))) : i.textContent = r(554))
+    }
+    )
+}
+function getData(t) {
+    var n, o, a = _0x5873e6, i = document[a(492)](a(533));
+    5 < t ? fallbackData() : (n = null == activeMac || null == activeMac ? macNoColon : replaceAll(activeMac, ":"),
+    pauseBtn[a(567)] = a(590),
+    (o = new XMLHttpRequest).open("GET", a(537) + n + ".txt", !0),
+    o.setRequestHeader(a(643), a(413)),
+    o[a(588)]("Pragma", a(411)),
+    o[a(431)](),
+    o.onreadystatechange = function() {
+        var n = a;
+        if (4 == this.readyState) {
+            if (200 == this[n(589)]) {
+                var o = this[n(530)]
+                  , r = o[n(474)]("#");
+                if (macVoucher = r[0],
+                i[n(472)] = r[1],
+                 200 < o[n(609)])
+                    return i[n(472)] = n(629),
+                    void setTimeout(function() {
+                        getData(t + 1)
+}, 1e3);
+                "Disconnected" == apiStatus ? (pauseBtn[n(420)].pointerEvents = n(416),
+                pause = !0,
+                null == voucher ? (macVoucher == n(624) && "" == macVoucher || (voucher = macVoucher),
+                pauseBtn[n(472)] = "Connect") : pauseBtn[n(472)] = "Resume",
+                null == invalidUser && getTimeleft()) : unlimited || (pauseBtn[n(472)] = n(610));
+                if ("Disconnected" == apiStatus) {
+                    var mbBtn = document.getElementById("memberBtn");
+                    if (member_login) mbBtn && (mbBtn.style.display = "block");
+                    // Preserve "Extend Time" button if there's a paused session
+                    if (pause && getCookie(_0x5873e6(421))) {
+                        insertBtn[n(472)] = "Extend Time";
+                    } else {
+                        insertBtn[n(472)] = "Insert Coin";
+                    }
+                }
+        } else
+            fallbackData()
+        }
+    }
+    )
+}
+function fallbackData() {
+    var t = _0x5873e6
+      , n = document[t(492)](t(533))
+      , o = document[t(492)](t(589));
+    apiStatus !== t(657) ? (null == invalidUser && getTimeleft(),
+    pauseBtn[t(420)][t(434)] = "auto",
+    pause = !0,
+    o[t(472)] == t(596) ? pauseBtn.textContent = t(488) : pauseBtn[t(472)] = t(513)) : n[t(472)] = t(554)
+}
+function getTimeleft() {
+    randomtempMac ? setTimeout(function() {
+        doConnect(!1, !1, voucher)
+    }, 150) : null == getCookie(_0x5873e6(421)) && setTimeout(function() {
+        doConnect(!1, !0, voucher)
+    }, 150)
+}
+function paused(t) {
+    var n = _0x5873e6
+      , o = document[n(492)]("status");
+    pauseBtn[n(420)].pointerEvents = "none",
+    timeleft = document[n(492)](n(468)),
+    pauseBtn[n(567)] = '<div class="loader"></div>',
+    setTimeout(function() {
+        var t, a = n;
+        pauseBtn.style[a(434)] = a(416),
+        // Check if button is in logout mode (member session logout)
+        pauseBtn.textContent.includes("Logout") ? (
+            // Proper logout for member session - disconnect and clear session
+            (t = new XMLHttpRequest)[a(660)](a(447), a(450), !0),
+            t[a(588)](a(505), a(622)),
+            t[a(431)](a(490)),
+            t[a(569)] = function() {
+                var t = a;
+                if (4 == this[t(584)]) {
+                    if (200 == this.status) {
+                        removeStorageValue(t(612)),
+                        removeStorageValue(t(535)),
+                        removeStorageValue(t(458)),
+                        removeStorageValue(t(614)),
+                        o[t(472)] = t(649),
+                        pauseBtn.textContent = t(513),
+                        resetMemberDisplay(),
+                        location.reload()
+                    } else {
+                        pause = false;
+                        clearBtnLoading(pauseBtn);
+                        pauseBtn.style.pointerEvents = "auto";
+                    }
+                }
+            },
+            t[a(498)] = function() {
+                var t = a;
+                pause = false;
+                clearBtnLoading(pauseBtn);
+                pauseBtn.style.pointerEvents = "auto";
+            },
+            t.timeout = 10000,
+            t.ontimeout = function() {
+                var t = a;
+                pause = false;
+                clearBtnLoading(pauseBtn);
+                pauseBtn.style.pointerEvents = "auto";
+            },
+            pause = !0
+        ) : (
+            // Normal pause/resume flow
+            pause ? doConnect(!1, !1, voucher) : (intervalManager(0),
+            (t = new XMLHttpRequest)[a(660)](a(447), a(450), !0),
+            t[a(588)](a(505), a(622)),
+            t[a(431)](a(490)),
+            t[a(569)] = function() {
+                var t = a;
+                if (4 == this[t(584)]) {
+                    if (200 == this.status) {
+                        unlimited ? (removeStorageValue(t(612)),
+                        removeStorageValue(t(535)),
+                        removeStorageValue(t(458)),
+                        location.reload()) : trial ? location[t(511)]() : (o[t(472)] = t(649),
+                        pauseBtn.textContent = t(513),
+                        setCookie(t(421), timeleft.innerHTML, 30));
+                    } else {
+                        pause = false;
+                        clearBtnLoading(pauseBtn);
+                        pauseBtn.style.pointerEvents = "auto";
+                    }
+                }
+            },
+            t[a(498)] = function() {
+                var t = a;
+                pause = false;
+                clearBtnLoading(pauseBtn);
+                pauseBtn.style.pointerEvents = "auto";
+            },
+            // Timeout fallback for RouterOS 7 slow responses
+            t.timeout = 10000,
+            t.ontimeout = function() {
+                var t = a;
+                pause = false;
+                clearBtnLoading(pauseBtn);
+                pauseBtn.style.pointerEvents = "auto";
+            },
+            // Timeout fallback for RouterOS 7 slow responses
+            t.timeout = 10000,
+            t.ontimeout = function() {
+                clearBtnLoading(pauseBtn);
+                pauseBtn.style.pointerEvents = "auto";
+                if (!pause) {
+                    setTimeout(function() {
+                        doConnect(!1, !1, voucher);
+                    }, 300);
+                }
+            },
+            pause = !0)
+        )
+    }, 50)
+}
+function doConnect(t, n, o, a) {
+    var i = _0x5873e6
+      , r = document[i(540)](i(654))
+      , s = document[i(492)]("status");
+    
+    // MAC Address Binding Check - Validate before connecting
+    if (!t && o && mac && macBindingEnabled) {
+        if (!checkMacBinding(o, mac)) {
+            openModal(dialog);
+            dialog.querySelector(".progress-bar").style.width = "0%";
+            dialog.querySelector(".header").textContent = "Device Mismatch!";
+            setTimeout(function() {
+                closeModal(dialog);
+            }, 3000);
+            return;
+        }
+    }
+    
+    t ? (closeModal(r),
+    openModal(dialog),
+    dialog.querySelector(i(578))[i(420)][i(503)] = i(464),
+    dialog.querySelector(i(515))[i(472)] = i(627)) : a = username_only ? "" : o,
+    (r = new XMLHttpRequest).open(i(447), i(442), !0),
+    r[i(569)] = function() {
+        var o = i;
+        4 == this[o(584)] && 200 == this[o(589)] && ("" != this.responseText[o(474)](o(638))[0] ? t ? (dialog[o(540)](o(515))[o(472)] = o(491),
+        setTimeout(function() {
+            closeModal(dialog)
+        }, 3000)) : (null !== getCookie(o(421)) && eraseCookie(o(421)),
+        removeStorageValue(o(612)),
+        removeStorageValue(o(535)),
+        removeStorageValue(o(458)),
+        document[o(492)]("timer")[o(567)] = secondsToDhms(0),
+        s.textContent = "Disconnected",
+        n ? setStorageValue(o(614), "true") : (dialog.querySelector(".progress-bar")[o(420)][o(503)] = o(464),
+        openModal(dialog),
+        dialog.querySelector(".header")[o(472)] = "Input does not exist. Please try again.",
+        setTimeout(function() {
+            pauseBtn.textContent = o(488),
+            closeModal(dialog)
+        }, 200))) : (t ? (dialog[o(540)](o(515)).textContent = o(539),
+        setTimeout(function() {
+            location.reload()
+        }, 200)) : n && paused(50),
+        api()))
+    }
+    ,
+    r[i(431)](i(538) + o + i(640) + a)
+}
+function _0x486d() {
+    var t = ['<div class="inner-wrapper"><div id="min">', "75%", "Done Paying", "&convertVoucher=", "220iNKKGi", "https://insert-coin-bg.parangvines.workers.dev/?date=", "offline", "[data-gcash]", "Done", "--color-primary", "Connect", "=; Max-Age=-99999999;", "erase-cookie=true", "Input does not exist. Please try again.", "getElementById", "remainTime", "[data-wr-close]", "href", "setProperty", "&mac=", "onerror", "vendoName", "[data-ic-close]", "getTime", "interface", "display", "loop", "Content-Type", "documentElement", "voucher=", "Days ", "<td>", "#totalCoin", "reload", "parse", "Resume", "add", ".header", "dataset", "errorCode", "textcolor", "footer_link", ".btn-group .input-group", "pause", "[data-ml-close]", "removeItem", "text/plain", "23898ESNSIR", "validity", "erase-cookie=false", "insertcoin", "You have been banned from using coin slot, due to multiple request for insert coin, please try again later!", "responseText", '</div><div>minutes</div></div><div class="inner-wrapper"><div id="sec">', "voucher_input", "exp", "[data-vendo]", "tempMac", "Error connecting to ", "/data/", "username=", "Connected Successfully!", "querySelector", "Insert Coin", "35032kKpFsY", "/api", "; expires=", "Please Insert Coin", "show", ", Please check your wifi connection", "Member Login", "Coinslot was cancelled", "[data-sv-close]", "subscription_prefix", "&extendTime=", "[data-message]", "Not Available", "coinslot.busy", "[data-ssid]", "now", "insertBtn", "--:--", "selectVendo", "/topUp", "rates", "ratesBody", "<td><p><b>User:</b></td><td><span>", "ratesBtn", "/cancelTopUp", "innerHTML", "dst=&username=T-", "onreadystatechange", "Muser", "&amount=", "Converting, Please wait!", "</td>", " Days ", "hour", "Retrying, Please wait!", "mac", ".progress-bar", "--background", "totalCoin", "100%", '<div class="d-flex flex-fill align-content-stretch"><div class="inner-wrapper"><div>Unlimited</div><div></div></div></div>', "load", "readyState", "[data-rates]", '<div class="d-flex flex-fill align-content-stretch">', "memberBtn", "setRequestHeader", "status", '<div class="loader"></div>', "auto_pause", ".00</td>", '<div class="d-flex flex-fill align-content-stretch"><div class="inner-wrapper"><div>Subscription</div><div></div></div></div>', "4386195lnUAuG", "gcash_payment", "Disconnected", "internet_status", "timeleft", "gcAmount", "Note: Changes takes effects only after uploading to mikrotik", '<div class="inner-wrapper"><div id="hr">', "8578ucgAtZ", ".txt", "30%", "Close", "modal-active", "toUTCString", "Reading coin, please wait", "length", "Pause", "No Pause Time", "activeMac", "Force login, Please wait!", "invalidUser", "settings.json", '</div><div>hours</div></div><div class="inner-wrapper"><div id="min">', "VendoAddresses", "3377940ZAXBfT", "[data-gc-pay]", "remove", "Logout", "application/x-www-form-urlencoded", "gcNumber", "null", "custom_theme", "no.internet.detected", "Checking User...", "setInterval", "Loading...", "GET", "</tr>", "[data-msg-close]", "down", "</div><div>seconds</div></div></div>", "Processing, Please wait!", "coin.is.reading", "Error!", "<script>", "vendoIp", "&password=", "Retrying, Please Wait!", "<tr>", "Expires", "[data-select-vendo]", "min", "substring", "</div><div>day</div></div>", "#validity", "Time Paused", "#totalTime", "Coin slot is busy, Please try again later", "pause_button", "3672472OYjNEs", "[data-member]", "Pragma", "&ipAddress=", "Connected", "</div><div>days</div></div>", "onclick", "open", "/useVoucher", "</div><div>seconds</div></div>", "151enXMxH", "Coin slot expired", "true", "no-cache", "--container", "Tue, 01 Jan 1980 1:00:00 GMT", "floor", "pauseBtn", "auto", "play", "Mpass", "vendo_option", "style", "timeLeft", '<button type="button" class="btn btn-primary" onclick="insertBtnManual(this)" data-vendo-ip="', "setItem", "Connecting, Please wait!", "charAt", "Wifi Rates", "http://", "ssid", "Input does not exist. Please try again.", "src", "send", "false", "/getRates?date=", "pointerEvents", "77nUytkD", "trial", "Unlimited", "0h:0m", "waitTime", "submit", "50%", "/login", "gcashBtn", "Settings", "mlBody", "replace", "POST", " Day ", "value", "/logout", "no_internet_settings", "[data-dialog]", "footer_text", "username", "loginBy", "classList", "Content-type", "activeVoucher", "Voucher checking, Please wait!", "internet_status_text", "width", "#message", " is offline!", "none", "cookie", "indexOf", "clear", "timer", "block", "95085GpAhRz", "currentTime", "textContent", "timeAdded", "split", "[data-insert-coin]", "coin.not.inserted", "Miles/sounds/coinreceived.mp3?date=", ];
+    return (_0x486d = function() {
+        return t
+    }
+    )()
+}
+function forceLogin() {
+    var t = _0x5873e6
+      , n = document[t(540)](t(452));
+    n[t(540)](t(578))[t(420)][t(461)] = t(581),
+    n[t(540)](".header")[t(472)] = t(486),
+    setTimeout(function() {
+        closeModal(n),
+        api()
+    }, 50)
+}
+function insertBtnManual(t) {
+    var n = _0x5873e6
+      , o = t.dataset
+      , a = document[n(540)](n(556))
+      , t = document.querySelector(n(534));
+    closeModal(svmodal),
+    insertBtn[n(420)].pointerEvents = "none",
+    insertBtn[n(567)] = n(590),
+    vendorIpAddress = o[n(639)],
+    a[n(567)] = o[n(428)],
+    t[n(567)] = o.vendoName,
+    vcTopUp = !1,
+    insertCoin(0),
+    setStorageValue(n(639), o.vendoIp),
+    setStorageValue(n(428), o.ssid),
+    setStorageValue(n(499), o[n(499)])
+}
+function insertCoin(t) {
+    var n = _0x5873e6;
+    document[n(540)](n(650))[n(472)] = n(559),
+    document.querySelector(n(648))[n(472)] = n(559),
+    removeStorageValue("invalidUser");
+    var o = getStorageValue(n(458));
+    return extendTimeCriteria = null == o ? 0 : 1,
+    (o = new XMLHttpRequest)[n(660)](n(447), n(427) + vendorIpAddress + n(561), !0),
+    o[n(588)](n(457), n(622)),
+    o[n(569)] = function() {
+        var t, o = n;
+        4 == this[o(584)] && 200 == this[o(589)] && ((t = JSON.parse(this.responseText))[o(589)] == o(410) ? (vcTopUp ? (dialog[o(540)](".progress-bar")[o(420)][o(503)] = o(469),
+        dialog[o(540)](".progress-bar").style[o(461)] = "10%",
+        dialog[o(540)](o(515))[o(472)] = o(459),
+        convertextVoucher(),
+        openModal(dialog)) : (audioPlay(!0),
+        coinslotExit = !1,
+        icmodal[o(540)](o(515)).textContent = o(545),
+        insertBtn[o(420)][o(434)] = o(416),
+        insertBtn[o(472)] = o(541),
+        icmodal[o(540)](o(578))[o(420)][o(461)] = "100%",
+        document[o(540)](o(500))[o(472)] = o(605),
+        icVendo[o(472)] = vendor.textContent,
+        null == timer && (timer = window[o(628)](function() {
+            checkCoin()
+        }, 1e3)),
+        openModal(icmodal)),
+        voucher = t.voucher,
+        insertingCoin = !0) : (notifyCoinSlotError(t[o(517)]),
+        clearInterval(timer = null)))
+    }
+    ,
+o[n(498)] = function() {
+    var o = n;
+    t > 5 ? (insertBtn[o(420)][o(434)] = o(464),
+    openModal(dialog),
+    dialog[o(540)](o(578))[o(420)][o(503)] = o(464),
+    dialog[o(540)](".header")[o(472)] = o(641),
+    setTimeout(function() {
+        insertCoin(e, t + 1)
+    }, 200)) : (dialog.querySelector(o(515))[o(472)] = vendor.textContent + o(463),
+    setTimeout(function() {
+        closeModal(dialog)
+    }, 200),
+    insertBtn[o(420)][o(434)] = o(416),
+    insertBtn.style.pointerEvents = "auto",
+    // Restore button state based on extendTimeCriteria
+    insertBtn.classList.remove('btn-loading'),
+    insertBtn.innerHTML = extendTimeCriteria == 1 ? 'Extend Time' : 'Insert Coin')
+}
+    ,
+    o.send(n(507) + voucher + n(497) + mac + n(656) + ipAddress + n(552) + extendTimeCriteria),
+    totalCoinReceived = 0,
+    !1
+}
+function checkCoin() {
+    var t = _0x5873e6
+      , n = new XMLHttpRequest;
+    n[t(660)](t(447), t(427) + vendorIpAddress + "/checkCoin", !0),
+    n[t(588)](t(457), t(622)),
+    n[t(431)](t(507) + voucher),
+    n.onreadystatechange = function() {
+        var n, o, a, i, r, s, $ = t;
+        4 == this[$(584)] && 200 == this[$(589)] && (n = JSON[$(512)](this[$(530)]),
+        totalCoinReceived = parseInt(n[$(580)]),
+        vcTopUp ? "true" == n.status ? (setStorageValue($(458), voucher),
+        null !== intervalID && (intervalManager(0),
+        (r = new XMLHttpRequest).open($(447), $(450), !0),
+        r[$(431)]("erase-cookie=false"))) : "coin.not.inserted" == n[$(517)] ? donepaying() : n[$(517)] == $(555) ? (clearInterval(timer),
+        0 == totalCoinReceived ? insertCoinhidden(!0, $(549)) : donepaying()) : clearInterval(timer) : (o = document.querySelector($(648)),
+        a = document[$(540)]($(500)),
+        i = document[$(540)]($(650)),
+        "true" == n.status ? (a.style[$(434)] = "none",
+        setStorageValue("activeVoucher", voucher),
+        null !== intervalID && (intervalManager(0),
+        (s = new XMLHttpRequest).open("POST", $(450), !0),
+        s[$(431)]($(527))),
+        document.querySelector($(510))[$(472)] = currency + " " + n.totalCoin,
+        0 == n.timeAdded ? i[$(472)] = "--:--" : i[$(472)] = credits(parseInt(n[$(473)])),
+        0 == n[$(526)] ? o[$(472)] = $(559) : o[$(472)] = credits(parseInt(60 * n[$(526)])),
+        coindropPlay()) : n[$(517)] == $(636) ? (icmodal[$(540)](".header")[$(472)] = $(608),
+        a[$(472)] = "Wait",
+        a[$(420)][$(434)] = "none") : n[$(517)] == $(476) ? (totalCoinReceived = parseInt(n[$(580)]),
+        a[$(420)][$(434)] = $(416),
+        coinslotExit || (icmodal[$(540)]($(515))[$(472)] = $(545)),
+        r = parseInt(parseInt(n[$(493)]) / 1e3),
+        s = parseFloat(n[$(439)]),
+        s = parseInt(1e3 * r / s * 100),
+        0 < totalCoinReceived && (a[$(472)] = $(480)),
+        0 == r ? 0 < totalCoinReceived ? donepaying() : insertCoinhidden(!0, $(664)) : (document[$(540)]("#totalCoin")[$(472)] = currency + " " + n[$(580)],
+        0 == n[$(473)] ? i.textContent = $(559) : i[$(472)] = credits(parseInt(n[$(473)])),
+        0 == n[$(526)] ? o[$(472)] = "--:--" : o.textContent = credits(parseInt(60 * n.validity)),
+        icmodal[$(540)]($(578))[$(420)][$(461)] = s + "%")) : n[$(517)] == $(555) ? (audioPlay(!1),
+        clearInterval(timer),
+        0 == totalCoinReceived ? insertCoinhidden(!0, $(549)) : donepaying()) : clearInterval(timer)))
+    }
+}
+function donepaying() {
+    var t, n = _0x5873e6;
+    0 < totalCoinReceived ? (vcTopUp || (audioPlay(!1),
+    closeModal(icmodal)),
+    clearInterval(timer),
+    timer = null,
+    openModal(dialog),
+    dialog[n(540)](n(578))[n(420)][n(461)] = n(441),
+    dialog[n(540)](n(515)).textContent = n(635),
+    (t = new XMLHttpRequest)[n(660)](n(447), n(427) + vendorIpAddress + n(661), !0),
+    t[n(588)]("Content-type", n(622)),
+    t[n(431)]("voucher=" + voucher),
+    t.onreadystatechange = function() {
+        var t = n;
+        4 == this[t(584)] && 200 == this.status && (JSON[t(512)](this.responseText)[t(589)] == t(410) ? (dialog[t(540)](".progress-bar")[t(420)][t(461)] = t(479),
+        dialog[t(540)](".header")[t(472)] = t(424),
+        setTimeout(function() {
+            forceLogin()
+        }, 250)) : insertCoinhidden(!1))
+    }
+    ,
+    t[n(498)] = function() {
+        var t = n;
+        dialog[t(540)](t(578))[t(420)][t(461)] = t(479),
+        dialog[t(540)](t(515))[t(472)] = t(613),
+        setTimeout(function() {
+            forceLogin()
+        }, 200)
+    }
+    ) : insertCoinhidden(!1)
+}
+function convertextVoucher() {
+    var t = _0x5873e6
+      , n = document.getElementById(t(454))[t(449)];
+    voucherToConvert = n,
+    (n = new XMLHttpRequest)[t(660)](t(447), t(427) + vendorIpAddress + "/convertVoucher", !0),
+    n[t(588)](t(505), t(622)),
+    n[t(431)](t(507) + voucher + t(481) + voucherToConvert),
+    n.onreadystatechange = function() {
+        var n = t;
+        4 == this[n(584)] && 200 == this[n(589)] && (JSON.parse(this.responseText)[n(589)] == n(432) ? insertCoinhidden(!0, n(429)) : null == timer && (timer = window[n(628)](function() {
+            var t = n;
+            dialog[t(540)](".progress-bar")[t(420)].width = t(604),
+            dialog[t(540)](t(515))[t(472)] = t(572),
+            checkCoin()
+        }, 1e3)),
+        document[n(492)](n(454))[n(449)] = "")
+    }
+    ,
+    n[t(498)] = function() {
+        var n = t;
+        document[n(492)]("username")[n(449)] = ""
+    }
+}
+function insertCoinhidden(t, n) {
+    var o = _0x5873e6;
+    closeModal(icmodal),
+    clearInterval(timer),
+    timer = null,
+    insertingCoin = !1,
+    vcTopUp || audioPlay(!1),
+    insertBtn.style.pointerEvents = "auto",
+    insertBtn.classList.remove('btn-loading'),
+    insertBtn.innerHTML = extendTimeCriteria == 1 ? 'Extend Time' : 'Insert Coin',
+    t && (dialog[o(540)](o(578)).style.display = o(464),
+    openModal(dialog),
+    coinslotExit = !0,
+    dialog[o(540)](o(515))[o(472)] = n,
+    setTimeout(function() {
+        closeModal(dialog)
+    }, 2000)),
+    0 == totalCoinReceived && cancelTopUp()
+}
+
+function mikhmonLogin() {
+    var t = _0x5873e6
+      , n = document[t(492)]("username")[t(449)];
+    if (!n || n.trim() === "") {
+        notifyCoinSlotError("Input does not exist. Please try again.");
+        return;
+    }
+    voucherToConvert = n;
+    voucher = macNoColon;
+    vcTopUp = !0;
+    extendTimeCriteria = 0;
+    insertCoin(0);
+}
+function cancelTopUp() {
+    var t = _0x5873e6
+      , n = new XMLHttpRequest;
+    n[t(660)]("POST", t(427) + vendorIpAddress + t(566), !0),
+    n[t(588)](t(505), "application/x-www-form-urlencoded"),
+    n[t(431)](t(507) + voucher + t(497) + mac)
+}
+function getWifiRate(t) {
+    var n = _0x5873e6
+      , o = document[n(492)](n(565))
+      , a = document[n(492)](n(563));
+    document[n(492)]("ratesBody")[n(420)][n(503)] = n(469),
+    o[n(420)].pointerEvents = "none",
+    a.style[n(503)] = "none",
+    wrmodal = document[n(540)]("[data-rates]"),
+    o[n(567)] = n(590);
+    var i = new XMLHttpRequest;
+    i.open(n(630), n(427) + vendorIpAddress + n(433) + Date[n(557)](), !0),
+    i[n(588)](n(457), n(524)),
+    i[n(431)](),
+    i[n(569)] = function() {
+        var t = n;
+        if (4 == this.readyState && 200 == this[t(589)]) {
+            var i = this[t(530)];
+            o.style[t(434)] = t(416),
+            a[t(420)][t(503)] = "block",
+            o[t(472)] = t(426),
+            wrmodal[t(540)](t(515))[t(472)] = t(426),
+            openModal(wrmodal);
+            var r, s = i[t(474)]("|"), $ = "";
+            for (r in s) {
+                var l = s[r][t(474)]("#")
+                  , c = 60 * parseInt(l[2])
+                  , d = 60 * parseInt(l[3]);
+                function u(n) {
+                    var o = t
+                      , a = Math[o(414)](n / 86400)
+                      , i = Math[o(414)](n % 86400 / 3600)
+                      , r = Math[o(414)](n % 3600 / 60)
+                      , s = 0 < a ? a + (1 === a ? "Day " : o(508)) : ""
+                      , $ = 0 < i ? i + "" : "0"
+                      , n = 0 < r ? r + "" : "0";
+                    return 0 < a && 0 == i && 0 == r ? s : 0 < r && 0 == i && 0 == a ? n + o(645) : 0 < i && 0 == r && 0 == a ? $ + o(575) : s + $ + "h:" + n + "m"
+                }
+                var v = u(c).toUpperCase()
+                  , p = u(d).toUpperCase();
+                p == t(438) || 0 == d ? p = t(437) : c == d && (p = t(611)),
+                $ = ($ = ($ = ($ += t(642)) + t(509) + ((vendor.textContent || getStorageValue("vendoName") || "").toUpperCase()) + t(509) + currency + " " + l[1] + t(592)) + t(509) + v + "</td>") + t(509) + p + t(573),
+                $ += t(631),
+                document[t(492)](t(562))[t(567)] = $
+            }
+        }
+    }
+    ,
+i[n(498)] = function() {
+    var o = n
+    , a = document[o(492)]("ratesBtn");
+    t < 4 ? (openModal(wrmodal),
+    wrmodal.querySelector(o(515))[o(472)] = o(576),
+    setTimeout(function() {
+        getWifiRate(t + 1)
+    }, 1e3)) : (wrmodal[o(540)](o(515))[o(472)] = "Wifi rates is not availabe at this moment.",
+    setTimeout(function() {
+        closeModal(wrmodal)
+    }, 200),
+    a[o(420)][o(434)] = o(416),
+    a[o(472)] = o(426),
+    // Restore button state
+    a.classList.remove('btn-loading'),
+    a.innerHTML = 'Wifi Rates')
+}
+}
+ajaxsettings[_0x5873e6(660)](_0x5873e6(630), _0x5873e6(615), !0),
+ajaxsettings[_0x5873e6(588)]("Expires", _0x5873e6(413)),
+ajaxsettings[_0x5873e6(588)](_0x5873e6(655), _0x5873e6(411)),
+ajaxsettings[_0x5873e6(431)](),
+ajaxsettings.onreadystatechange = function() {
+    var t = _0x5873e6;
+    if (4 == this[t(584)] && 200 == this[t(589)]) {
+        var n = JSON.parse(this.responseText);
+        if (pause_button = n[t(444)][t(652)],
+member_logout_button = n.Settings.member_logout_button,
+         trial_logout_button = n[t(444)].trial_logout_button,
+wifi_rates_show = n.Settings.wifi_rates_show,
+          insert_coin = n.Settings.insert_coin,
+          currency = n.Settings.currency,
+          username_only = n.Settings.username_only,
+          member_login = n.Settings.member_login,
+          link.href = n[t(444)][t(519)],
+           link[t(472)] = n[t(444)][t(453)],
+           // Load marquee text from config
+           marqueeText && n.Settings.marquee_text && (marqueeText.textContent = n.Settings.marquee_text),
+            (!n.Settings.wifi_rates_show || n.Settings.wifi_rates_show === !1) && document.getElementById("ratesBtn") && (document.getElementById("ratesBtn").style.display = "none"),
+         n.Settings[t(532)] || (document[t(540)](".btn-group .input-group")[t(420)].display = t(464)),
+         (!n.Settings.insert_coin || n.Settings.insert_coin === !1) && document.getElementById("insertBtn") && (document.getElementById("insertBtn").style.display = "none"),
+         (!n.Settings.member_login || n.Settings.member_login === !1) && document.getElementById("memberBtn") && (document.getElementById("memberBtn").style.display = "none"),
+        n[t(444)][t(597)] && getInternetStatus(n.no_internet_settings[t(528)], n.no_internet_settings[t(591)], n[t(451)].internet_status_tittle, n[t(451)][t(460)]),
+        n[t(444)].subscription && (subscription = !0,
+        subscription_prefix = n[t(551)]),
+        n.portalKey && (portalKey = n.portalKey),
+        // Load MAC binding setting from config
+        n.mac_binding !== undefined && (macBindingEnabled = n.mac_binding),
+        // Load Mikhmon setting from config
+        n.Settings.mikhmon !== undefined && (mikhmon = n.Settings.mikhmon),
+        as && portalKey && !validatePortalKey(portalKey) && (disableButtons(),
+        (function(){ var el=document.querySelector(".details"); if(el) el.style.display="none"; })(),
+        console.log("Invalid portal key format"),
+        alert("Invalid Portal Key. Please contact administrator to get a valid key.")),
+        as && !portalKey && (disableButtons(),
+        (function(){ var el=document.querySelector(".details"); if(el) el.style.display="none"; })(),
+        console.log("Portal key is empty - disabling portal"),
+        alert("Portal key not configured. Please contact administrator.")),
+        0 == n[t(444)].vendo_option)
+            ssid[t(567)] = n.VendoAddresses[0][t(428)],
+            vendor[t(472)] = n[t(617)][0][t(499)],
+            vendorIpAddress = n.VendoAddresses[0][t(639)];
+        else if (1 == n[t(444)].vendo_option) {
+            autoSelect = !1,
+            null == getStorageValue(t(639)) ? (vendorIpAddress = n[t(617)][0][t(639)],
+            ssid[t(567)] = n[t(617)][0][t(428)],
+            vendor.innerHTML = n[t(617)][0][t(499)],
+            setStorageValue("vendoIp", n[t(617)][0][t(639)]),
+            setStorageValue("ssid", n[t(617)][0][t(428)]),
+            setStorageValue("vendoName", n[t(617)][0][t(499)])) : (vendorIpAddress = getStorageValue("vendoIp"),
+            ssid[t(567)] = getStorageValue(t(428)),
+            vendor[t(567)] = getStorageValue(t(499)));
+            for (var o = 0; o < n[t(617)].length; o++)
+                selectVendo[t(567)] = selectVendo[t(567)] + t(422) + n.VendoAddresses[o][t(639)] + '" data-ssid="' + n.VendoAddresses[o].ssid + '" data-vendo-name="' + n[t(617)][o][t(499)] + '">' + n[t(617)][o][t(499)] + "</button>"
+        } else if (2 == n.Settings[t(419)])
+            for (o = 0; o < n[t(617)][t(609)]; o++) {
+                var a = interfaceName;
+                n[t(617)][o].interfaceName == a && (ssid[t(567)] = n[t(617)][o][t(428)],
+                vendor[t(472)] = n[t(617)][o][t(499)],
+                vendorIpAddress = n[t(617)][o][t(639)])
+            }
+        1 !== n[t(444)][t(419)] && (autoSelect = !0,
+        removeStorageValue("vendoIp"),
+        removeStorageValue("ssid"),
+        removeStorageValue(t(499))),
+        api()
+    }
+}
+,
+ajaxsettings[_0x5873e6(498)] = function() {
+    var t = _0x5873e6;
+    body[t(420)].display = t(469),
+    alert(t(600))
+}
+,
+insertBtn.onclick = function() {
+    var t = _0x5873e6;
+    if (!insert_coin) {
+        var msgEl = document.getElementById('message');
+        var modal = document.querySelector('[data-message]');
+        if (modal) {
+            modal.querySelector('.header').textContent = 'Unavailable';
+            if (msgEl) msgEl.textContent = 'Insert Coin is currently disabled. Please contact the vendo owner.';
+            openModal(modal);
+        }
+        return;
+    }
+    // Add loading state
+    insertBtn.classList.add('btn-loading');
+    insertBtn.innerHTML = '<span class="loader"></span> Processing...';
+    
+    autoSelect ? (insertBtn[t(420)][t(434)] = t(464),
+    insertBtn[t(567)] = t(590),
+    vcTopUp = !1,
+    insertCoin(0)) : internet_status == t(633) ? notifyCoinSlotError(t(626)) : openModal(svmodal)
+}
+,
+document[_0x5873e6(540)](_0x5873e6(500))[_0x5873e6(659)] = function() {
+    donepaying()
+}
+,
+document[_0x5873e6(540)](_0x5873e6(550))[_0x5873e6(659)] = function() {
+    closeModal(svmodal)
+}
+,
+document.querySelector(_0x5873e6(494))[_0x5873e6(659)] = function() {
+    var t = _0x5873e6;
+    closeModal(document[t(540)](t(585)))
+}
+,
+document.querySelector(_0x5873e6(522))[_0x5873e6(659)] = function() {
+    var t = _0x5873e6;
+    closeModal(document[t(540)](t(654)))
+}
+,
+document[_0x5873e6(540)](_0x5873e6(632))[_0x5873e6(659)] = function() {
+    var t = _0x5873e6;
+    closeModal(document[t(540)](t(553)))
+}
+,
+pauseBtn.onclick = function() {
+    paused(200)
+}
+,
+document[_0x5873e6(492)](_0x5873e6(565))[_0x5873e6(659)] = function() {
+    // Add loading state
+    var ratesBtn = document[_0x5873e6(492)](_0x5873e6(565));
+    ratesBtn.classList.add('btn-loading');
+    ratesBtn.innerHTML = '<span class="loader"></span> Loading...';
+    
+    getWifiRate(0)
+}
+,
+document.getElementById(_0x5873e6(587))[_0x5873e6(659)] = function() {
+    var t = _0x5873e6
+      , n = document.querySelector(t(654));
+    document.getElementById(t(445))[t(420)].display = t(469),
+    n[t(540)](".header")[t(472)] = t(548),
+    openModal(n)
+}
+,
+document[_0x5873e6(540)]("[data-login]").onclick = function() {
+    var t = _0x5873e6;
+    doConnect(!0, !1, document[t(492)](t(570))[t(449)], document[t(492)](t(418))[t(449)])
+}
+,
+document[_0x5873e6(492)](_0x5873e6(440)).onclick = function() {
+    var t = _0x5873e6
+      , username = document[t(492)]("username")[t(449)];
+    // Validate input
+    if (!username || username.trim() === "") {
+        var msgEl = document.getElementById('message');
+        var modal = document.querySelector('[data-message]');
+        if (modal) {
+            modal.querySelector('.header').textContent = 'Error!';
+            if (msgEl) msgEl.textContent = 'Please enter a voucher code before submitting.';
+            openModal(modal);
+        }
+        return;
+    }
+    if (mikhmon) {
+        doConnect(!0, !1, username, "");
+    } else {
+        mikhmonLogin();
+    }
+}
+,
+document.querySelector("[data-claim]")[_0x5873e6(659)] = function() {
+    var t = _0x5873e6;
+    this.innerHTML = t(590),
+    this[t(420)][t(434)] = "none",
+    setTimeout(function() {
+        var n = t
+          , o = new XMLHttpRequest;
+        o[n(660)](n(447), n(442), !0),
+        o.send(n(568) + mac),
+        location[n(511)]()
+    }, 200)
+}
+,
+document.querySelector("[data-trl-close]")[_0x5873e6(659)] = function() {
+    closeModal(trlmodal)
+}
+;
+var animate = function() {
+    var t = _0x5873e6
+      , n = new XMLHttpRequest;
+    n.open(t(630), t(543), !0),
+    n.send(),
+    n[t(569)] = function() {
+        var n, o = t;
+        4 === this[o(584)] && 200 === this.status && (n = JSON[o(512)](this[o(530)]),
+        null == getStorageValue("ip") ? setStorageValue("ip", n.ip) : getStorageValue("ip") !== n.ip && (removeStorageValue("ip"),
+        location[o(511)]()),
+        mac = n[o(577)],
+        macNoColon = replaceAll(mac, ":"),
+        ipAddress = n.ip,
+        document.getElementById("timer")[o(567)] = secondsToDhms(n[o(598)]),
+        stats[o(472)] = n[o(589)],
+        "Disconnected" == n[o(589)] && intervalManager(0),
+        0 == n[o(598)] && ((n = new XMLHttpRequest)[o(660)](o(447), o(450), !0),
+        n[o(588)](o(505), o(622)),
+        n[o(431)](o(490)),
+        n.onreadystatechange = function() {
+            var t = o;
+            4 == this[t(584)] && 200 == this[t(589)] && location.reload()
+        }
+        ,
+        null !== getCookie(o(421)) && eraseCookie(o(421)),
+        removeStorageValue(o(612)),
+        removeStorageValue(o(535)),
+        removeStorageValue(o(458))),
+        pause_button ? !prefix && trial && trial_logout_button && (pauseBtn[o(420)][o(503)] = o(469),
+        pauseBtn[o(420)].pointerEvents = "auto") : (pauseBtn[o(420)][o(503)] = "none",
+        pauseBtn[o(420)].pointerEvents = o(464)))
+    }
+    ,
+    n.onerror = function() {
+        notifyCoinSlotError(t(484))
+    }
+};
+function intervalManager(t, n, o) {
+    t ? (intervalID = setInterval(n, o),
+    pauseBtn.textContent = "Pause") : (clearInterval(intervalID),
+    intervalID = null)
+}
+function audioPlay(t) {
+    var n = _0x5873e6;
+    if (!insertcoinbg.src) {
+        insertcoinbg.src = "https://insert-coin-bg.parangvines.workers.dev/?v=" + Date.now();
+        insertcoinbg[n(583)]();
+        insertcoinbg[n(504)] = !0;
+    }
+    if (t) {
+        insertcoinbg.currentTime = 0;
+        insertcoinbg.play();
+    } else {
+        insertcoinbg[n(521)]();
+        insertcoinbg[n(471)] = 0;
+    }
+}
+function coindropPlay() {
+      if (!coinCount.src) {
+          coinCount.src = "https://coin-received.parangvines.workers.dev/?v=" + Date.now();
+      }
+      coinCount.currentTime = 0;
+      coinCount.play();
+  }
+function credits(t) {
+    var n = _0x5873e6;
+    t = Number(t);
+    var o = Math[n(414)](t / 86400)
+      , a = Math[n(414)](t % 86400 / 3600)
+      , t = Math[n(414)](t % 3600 / 60);
+    return (0 < o ? o + n(1 == o ? 448 : 574) : "") + "" + (0 < a ? a + "" : "0") + "h:" + (0 < t ? t + "" : "0") + "m"
+}
+function secondsToDhms(t) {
+    // Get timer elements
+    var dayEl = document.getElementById("my-day");
+    var hourEl = document.getElementById("my-hour");
+    var minEl = document.getElementById("my-min");
+    var secEl = document.getElementById("my-sec");
+    var timerEl = document.getElementById("timer");
+    
+    // Handle unlimited or invalid time
+    if (!t || t === "Unlimited" || t === "unlimited") {
+        if (dayEl) dayEl.textContent = "0";
+        if (hourEl) hourEl.textContent = "0";
+        if (minEl) minEl.textContent = "0";
+        if (secEl) secEl.textContent = "0";
+        if (timerEl) timerEl.textContent = "Unlimited";
+        return "Unlimited";
+    }
+
+    // Check if the input time is 0 or falsy
+    if (t === 0) {
+        if (dayEl) dayEl.textContent = "0";
+        if (hourEl) hourEl.textContent = "0";
+        if (minEl) minEl.textContent = "0";
+        if (secEl) secEl.textContent = "0";
+        if (timerEl) timerEl.textContent = "0m : 0s";
+        return "0m : 0s";
+    }
+
+    // Convert input to a number
+    t = Number(t);
+
+    // Calculate days, hours, minutes, and seconds
+    var days = Math.floor(t / 86400);
+    var hours = Math.floor((t % 86400) / 3600);
+    var minutes = Math.floor((t % 3600) / 60);
+    var seconds = Math.floor(t % 60);
+
+    // Update the timer display
+    if (dayEl) dayEl.textContent = days || "0";
+    if (hourEl) hourEl.textContent = hours || "0";
+    if (minEl) minEl.textContent = minutes || "0";
+    if (secEl) secEl.textContent = seconds || "0";
+    if (timerEl) timerEl.textContent = (days > 0 ? days + " Days " : "") + (hours > 0 ? hours + "h : " : "") + minutes + "m : " + seconds + "s";
+
+    // Format the legacy return value
+    var dayStr = days > 0 ? days + " Days " : "";
+    var hourStr = hours > 0 ? hours + "h : " : "";
+
+    return `${dayStr}${hourStr}${minutes}m : ${seconds}s`;
+}
+function restoreTimerDisplay(timeStr) {
+    if (!timeStr || timeStr === "Unlimited" || timeStr === "unlimited") return;
+    
+    var totalSeconds = 0;
+    timeStr = timeStr.toString().toLowerCase().replace(/\s/g, '');
+    
+    var dayMatch = timeStr.match(/(\d+)\s*d/);
+    var hourMatch = timeStr.match(/(\d+)\s*h/);
+    var minMatch = timeStr.match(/(\d+)\s*m/);
+    var secMatch = timeStr.match(/(\d+)\s*s/);
+    
+    if (dayMatch) totalSeconds += parseInt(dayMatch[1]) * 86400;
+    if (hourMatch) totalSeconds += parseInt(hourMatch[1]) * 3600;
+    if (minMatch) totalSeconds += parseInt(minMatch[1]) * 60;
+    if (secMatch) totalSeconds += parseInt(secMatch[1]);
+    
+    if (totalSeconds > 0) {
+        secondsToDhms(totalSeconds);
+    }
+}
+function setStorageValue(t, n) {
+    null != localStorage && localStorage[_0x5873e6(423)](t, n)
+}
+function removeStorageValue(t) {
+    null != localStorage && localStorage[_0x5873e6(523)](t)
+}
+function _0xa071(t, n) {
+    var o = _0x486d();
+    return (_0xa071 = function(t, n) {
+        return o[t -= 410]
+    }
+    )(t, n)
+}
+function getStorageValue(t) {
+    if (null != localStorage)
+        return localStorage.getItem(t)
+}
+function clearStorageValue() {
+    null != localStorage && localStorage[_0x5873e6(467)]()
+}
+function setCookie(t, n, o) {
+    var a, i = _0x5873e6, r = "";
+    o && ((a = new Date).setTime(a[i(501)]() + 1e3 * o),
+    r = i(544) + a[i(607)]()),
+    document.cookie = t + "=" + (n || "") + r + "; path=/"
+}
+function getCookie(t) {
+    for (var n = _0x5873e6, o = t + "=", a = document.cookie.split(";"), i = 0; i < a.length; i++) {
+        for (var r = a[i]; " " == r[n(425)](0); )
+            r = r.substring(1, r[n(609)]);
+        if (0 == r[n(466)](o))
+            return r[n(646)](o[n(609)], r[n(609)])
+    }
+    return null
+}
+function eraseCookie(t) {
+    var n = _0x5873e6;
+    document[n(465)] = t + n(489)
+}
+function replaceAll(t, n) {
+    for (var o = _0x5873e6, a = t; 0 < a.indexOf(n); )
+        a = a[o(446)](n, "");
+    return a
+}
+function notifyCoinSlotError(t) {
+    var n = _0x5873e6
+      , o = document[n(540)](n(553));
+    openModal(o),
+    t == n(555) && (o[n(540)](n(515)).textContent = "Error!",
+    document.querySelector(n(462))[n(472)] = n(651)),
+    "coin.slot.banned" == t && (o[n(540)](n(515))[n(472)] = "Warning!",
+    document[n(540)](n(462)).textContent = n(529)),
+    t == n(626) && (o[n(540)](n(515))[n(472)] = n(637),
+    document[n(540)]("#message")[n(472)] = "No internet connection as of the moment, Please try again later"),
+    t == n(484) ? (o.querySelector(n(515))[n(472)] = "Error!",
+    document.querySelector(n(462))[n(472)] = n(536) + '"' + document[n(540)](n(556)).textContent + '"' + n(547)) : setTimeout(function() {
+        var t = n;
+        insertBtn.style[t(434)] = t(416),
+        insertBtn[t(472)] = extendTimeCriteria == 1 ? "Extend Time" : "Insert Coin"
+    }, 200)
+}
+function openModal(t) {
+    var n = _0x5873e6;
+    null != t && (t[n(456)][n(514)](n(546)),
+    body.classList.add("modal-active"))
+}
+function closeModal(t) {
+    var n = _0x5873e6;
+    null != t && (t.classList[n(620)](n(546)),
+    body[n(456)][n(620)](n(606)))
+}
+function clearBtnLoading(btn) {
+    if (!btn) return;
+    btn.classList.remove('btn-loading');
+    if (btn.id === 'pauseBtn') {
+        btn.innerHTML = 'Pause';
+    } else if (btn.id === 'insertBtn') {
+        btn.innerHTML = extendTimeCriteria == 1 ? 'Extend Time' : 'Insert Coin';
+    } else if (btn.id === 'ratesBtn') {
+        btn.innerHTML = 'Wifi Rates';
+    } else {
+        btn.textContent = '';
+    }
+}
+
+function updateStatusColor() {
+    const statusEl = document.getElementById('status');
+    const insertBtnEl = document.getElementById('insertBtn');
+    if (!statusEl) return;
+    const statusText = statusEl.textContent.trim().toLowerCase();
+    statusEl.classList.remove('connected', 'paused');
+    if (statusText === 'connected') {
+        statusEl.classList.add('connected');
+        if (insertBtnEl) {
+            insertBtnEl.textContent = 'Extend Time';
+        }
+    } else if (statusText.includes('pause')) {
+        statusEl.classList.add('paused');
+        // Keep Extend Time button when paused (user still has valid session)
+        if (insertBtnEl) {
+            insertBtnEl.textContent = 'Extend Time';
+        }
+    }
+    // If disconnected, reset member display to show timer
+    if (statusText === 'disconnected') {
+        resetMemberDisplay();
+        if (insertBtnEl) {
+            insertBtnEl.textContent = 'Insert Coin';
+        }
+    }
+}
+document.addEventListener('DOMContentLoaded', function() {
+    var statusEl = document.getElementById('status');
+    if (statusEl) {
+        var observer = new MutationObserver(updateStatusColor);
+        observer.observe(statusEl, { childList: true, characterData: true, subtree: true });
+        updateStatusColor();
+    }
+});
+function restoreIcons() {
+	var iconMappings = {
+		'pauseBtn': '',  // Will be set dynamically based on button text
+		// Image-based buttons - skip icon injection
+		'insertBtn': '',  // Uses custom image
+		'ratesBtn': '',    // Uses custom image
+		'memberBtn': '',   // Uses custom image
+		'submit': ''       // Uses custom image
+	};
+	var dataIconMappings = {
+		'data-ic-close': '',    // Uses custom image
+		'data-sv-close': '',    // Uses custom image
+		'data-wr-close': '',    // Uses custom image
+		'data-ml-close': '',    // Uses custom image
+		'data-trl-close': '',   // Uses custom image
+ 		'data-msg-close': '',   // Uses custom image
+ 		'data-login': '<i class="fas fa-sign-in-alt"></i> ',
+ 		'data-claim': '<i class="fas fa-gift"></i> '
+ 	};
+ 	for (var btnId in iconMappings) {
+ 		var btn = document.getElementById(btnId);
+ 		if (btn) {
+ 			var icon = '';
+ 			// No icon injection for pauseBtn - text only
+ 			if (btnId === 'pauseBtn') {
+ 				// Keep icon empty (no icon)
+ 			} else {
+ 				icon = iconMappings[btnId];
+ 			}
+ 			
+ 			// Only inject icon if button doesn't have an img element and doesn't already have FA icon
+ 			if (icon && btn.innerHTML.indexOf('fas fa-') === -1 && btn.innerHTML.indexOf('<img') === -1) {
+ 				var text = btn.textContent || btn.innerText;
+ 				btn.innerHTML = icon + text;
+ 			}
+ 		}
+ 	}
+	for (var dataAttr in dataIconMappings) {
+		var btns = document.querySelectorAll('[' + dataAttr + ']');
+		btns.forEach(function(btn) {
+			var icon = dataIconMappings[dataAttr];
+			// Skip if no icon to inject (uses custom image)
+			if (!icon) return;
+			var currentHTML = btn.innerHTML;
+			if (currentHTML.indexOf('fas fa-') === -1 && currentHTML.indexOf('<img') === -1) {
+				var text = btn.textContent || btn.innerText;
+				btn.innerHTML = icon + text;
+			}
+		});
+	}
+}
+document.addEventListener('DOMContentLoaded', function() {
+	restoreIcons();
+});
+setTimeout(restoreIcons, 100);
+setTimeout(restoreIcons, 500);
+setTimeout(restoreIcons, 1000);
+if (typeof MutationObserver !== 'undefined') {
+	var iconObserver = new MutationObserver(function(mutations) {
+		restoreIcons();
+	});
+	document.addEventListener('DOMContentLoaded', function() {
+		iconObserver.observe(document.body, {
+			childList: true,
+			subtree: true,
+			characterData: true,
+			attributes: true,
+			attributeFilter: ['innerHTML', 'textContent']
+		});
+	});
+}
+
+// Watch for text changes on specific buttons and restore icons
+const buttonIconMap = {
+	// memberBtn icon removed - using text-only button
+};
+
+const closeButtonSelectors = [
+	'[data-ic-close]',
+	'[data-sv-close]',
+	'[data-wr-close]',
+	'[data-ml-close]',
+	'[data-trl-close]',
+	'[data-msg-close]'
+];
+
+function ensureButtonIcon(btn) {
+	if (!btn) return;
+	const btnId = btn.id;
+	const isCloseButton = closeButtonSelectors.some(sel => btn.matches(sel));
+
+	// Check if button already has the icon
+	if (btn.querySelector('img.btn-icon')) return;
+
+	// Get the text content before modifying
+	const text = btn.textContent || btn.innerText;
+
+	if (buttonIconMap[btnId]) {
+		// Image-based button
+		const imgSrc = buttonIconMap[btnId];
+		btn.innerHTML = `<img src="${imgSrc}" class="btn-icon" alt=""> ${text}`;
+	} else if (isCloseButton) {
+		// Close button - use close.png
+		btn.innerHTML = `<img src="Miles/img/close.png" class="btn-icon btn-close-icon" alt=""> ${text}`;
+	}
+}
+
+function ensureAllButtons() {
+	// Check image buttons
+	Object.keys(buttonIconMap).forEach(function(btnId) {
+		const btn = document.getElementById(btnId);
+		if (btn) ensureButtonIcon(btn);
+	});
+	// Check close buttons
+	closeButtonSelectors.forEach(function(selector) {
+		document.querySelectorAll(selector).forEach(function(btn) {
+			ensureButtonIcon(btn);
+		});
+	});
+}
+
+// Observe buttons for changes
+const buttonObserver = new MutationObserver(function(mutations) {
+	mutations.forEach(function(mutation) {
+		if (mutation.type === 'childList' || mutation.type === 'characterData') {
+			if (mutation.target.classList && mutation.target.classList.contains('btn')) {
+				ensureButtonIcon(mutation.target);
+			}
+		}
+	});
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+  	// Set up observer for all buttons
+  	setTimeout(function() {
+  		ensureAllButtons();
+  		Object.keys(buttonIconMap).forEach(function(btnId) {
+  			const btn = document.getElementById(btnId);
+  			if (btn) {
+  				buttonObserver.observe(btn, {
+  					childList: true,
+  					characterData: true,
+  					subtree: true
+  				});
+  			}
+  		});
+  		// Observe close buttons
+  		closeButtonSelectors.forEach(function(selector) {
+  			document.querySelectorAll(selector).forEach(function(btn) {
+  				buttonObserver.observe(btn, {
+  					childList: true,
+  					characterData: true,
+  					subtree: true
+  				});
+  			});
+  		});
+  		// Observe pause/logout button to toggle logout-mode class
+  		const pauseBtnEl = document.getElementById('pauseBtn');
+  		if (pauseBtnEl) {
+  			const pauseBtnTextObserver = new MutationObserver(function(mutations) {
+  				if (pauseBtnEl.textContent.includes('Logout')) {
+  					pauseBtnEl.classList.add('logout-mode');
+  				} else if (pauseBtnEl.textContent.includes('Pause')) {
+  					pauseBtnEl.classList.remove('logout-mode');
+  				}
+  			});
+  			pauseBtnTextObserver.observe(pauseBtnEl, {
+  				childList: true,
+  				characterData: true,
+  				subtree: true
+  			});
+  			// Initial check
+  			if (pauseBtnEl.textContent.includes('Logout')) {
+  				pauseBtnEl.classList.add('logout-mode');
+  			}
+  		}
+  	}, 100);
+});
+var coinCircle = document.querySelector('#insertCoinModal .coin-progress-fill');
+var coinAmountEl = document.querySelector('#insertCoinModal #totalCoin');
+var coinProgressBar = document.querySelector('#insertCoinModal .progress-bar');
+var maxCoinAmount = 100;
+var circumference = 2 * Math.PI * 45;
+
+if (coinCircle) {
+	coinCircle.style.strokeDasharray = circumference;
+	coinCircle.style.strokeDashoffset = circumference;
+}
+
+function updateCoinCircle() {
+	if (!coinCircle) return;
+	if (coinProgressBar && coinProgressBar.style.width) {
+		var width = coinProgressBar.style.width;
+		var percentMatch = width.match(/(\d+)%/);
+		if (percentMatch) {
+			var percent = parseInt(percentMatch[1]);
+			var offset = circumference - (percent / 100) * circumference;
+			coinCircle.style.strokeDashoffset = offset;
+		}
+	} else if (coinAmountEl) {
+		var amountText = coinAmountEl.textContent || coinAmountEl.innerText;
+		var amountMatch = amountText.match(/₱\s*([\d.]+)/);
+		if (amountMatch) {
+			var amount = parseFloat(amountMatch[1]);
+			var progress = Math.min((amount / maxCoinAmount) * 100, 100);
+			var offset = circumference - (progress / 100) * circumference;
+			coinCircle.style.strokeDashoffset = offset;
+		}
+	}
+}
+var coinObserver = new MutationObserver(function(mutations) {
+	mutations.forEach(function(mutation) {
+		if (mutation.type === 'characterData' || mutation.type === 'childList' || mutation.type === 'attributes') {
+			updateCoinCircle();
+		}
+	});
+});
+document.addEventListener('DOMContentLoaded', function() {
+	setTimeout(function() {
+		var coinModal = document.querySelector('[data-insert-coin]');
+		if (coinModal) {
+			coinObserver.observe(coinModal, {
+				childList: true,
+				subtree: true,
+				characterData: true,
+				attributes: true
+			});
+		}
+		updateCoinCircle();
+	}, 500);
+});
+setInterval(updateCoinCircle, 200);
+
+// E-Wallet Configuration
+var EWALLET_CONFIG = {
+    portalKey: '',
+    serverIP: '',
+    usernameField: '',
+    submitButton: '',
+    enabled: true
+};
+
+function loadEWalletConfig() {
+    fetch('settings.json').then(function(response) {
+        return response.json()
+    }).then(function(settings) {
+        if (settings.ewallet) {
+            EWALLET_CONFIG.portalKey = settings.ewallet.portalKey || EWALLET_CONFIG.portalKey;
+            EWALLET_CONFIG.serverIP = settings.ewallet.serverIP || EWALLET_CONFIG.serverIP;
+            EWALLET_CONFIG.usernameField = settings.ewallet.usernameField || EWALLET_CONFIG.usernameField;
+            EWALLET_CONFIG.submitButton = settings.ewallet.submitButton || EWALLET_CONFIG.submitButton
+        }
+        if (settings.Settings && settings.Settings.ewallet_enabled !== undefined) {
+            EWALLET_CONFIG.enabled = settings.Settings.ewallet_enabled
+        }
+        var btn = document.getElementById('gcashBtn_new');
+        if (btn) {
+            btn.style.display = EWALLET_CONFIG.enabled ? 'inline-block' : 'none'
+        }
+    }).catch(function() {
+        console.log('Using default e-wallet configuration')
+    })
+}
+
+function openEWalletModal() {
+    if (EWALLET_CONFIG && EWALLET_CONFIG.enabled) {
+        display_ewalletvoucher_modal(
+            EWALLET_CONFIG.portalKey,
+            EWALLET_CONFIG.serverIP,
+            EWALLET_CONFIG.usernameField,
+            EWALLET_CONFIG.submitButton
+        )
+    }
+}
+
+// Initialize e-wallet config on load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadEWalletConfig);
+} else {
+    loadEWalletConfig();
+}
+
+// Set encoded URLs for footer links on DOMContentLoaded
+document.addEventListener('DOMContentLoaded', function() {
+    var devLink = document.getElementById("devLink");
+    if (devLink) devLink.href = atob(encodedDevLink);
+    for (c of '77,105,108,101,115,32,80,111,114,116,97,108'.split(',')) document.title += String.fromCharCode(c);
+});
+ 	document.addEventListener('DOMContentLoaded', function() {
+ 	    var deviceInfoBtn = document.getElementById('deviceInfoBtn');
+ 	    var deviceInfoModal = document.querySelector('[data-deviceinfo]');
+ 	    var closeBtn = document.querySelector('[data-di-close]');
+ 	    
+ 	    if (deviceInfoBtn && deviceInfoModal) {
+ 	        deviceInfoBtn.addEventListener('click', function() {
+ 	            // Populate device info from global variables
+ 	            document.getElementById('devIp').textContent = typeof ipAddress !== 'undefined' ? ipAddress : '--';
+ 	            document.getElementById('devMac').textContent = typeof mac !== 'undefined' ? mac : '--';
+ 	            document.getElementById('devVoucher').textContent = typeof voucher !== 'undefined' && voucher ? voucher : '--';
+ 	            document.getElementById('devVendo').textContent = (typeof vendor !== 'undefined' && vendor) ? vendor.textContent : '--';
+ 	            document.getElementById('devSsid').textContent = (typeof ssid !== 'undefined' && ssid) ? ssid.textContent : '--';
+ 	            
+ 	            // Get remaining time and expiration from timer display and exp element
+ 	            var timerEl = document.getElementById('timer');
+ 	            document.getElementById('devTime').textContent = timerEl ? timerEl.textContent : '--';
+ 	            
+ 	            var expEl = document.getElementById('exp');
+ 	            document.getElementById('devExpiration').textContent = expEl ? expEl.textContent : '--';
+ 	            
+ 	            // Hide expiration row for personal vouchers (starts with T-) and member logins
+ 	            var expirationRow = document.getElementById('devExpiration').closest('tr');
+ 	            if (expirationRow) {
+ 	                // Check if it's a trial/personal voucher or unlimited/member session
+ 	                var isPersonalVoucher = typeof voucher !== 'undefined' && voucher && voucher.startsWith('T-');
+ 	                var isUnlimited = typeof unlimited !== 'undefined' && unlimited;
+ 	                var isTrial = typeof trial !== 'undefined' && trial;
+ 	                
+ 	                if (isPersonalVoucher || isUnlimited || isTrial) {
+ 	                    expirationRow.style.display = 'none';
+ 	                } else {
+ 	                    expirationRow.style.display = '';
+ 	                }
+ 	            }
+ 	            
+ 	            openModal(deviceInfoModal);
+ 	        });
+ 	    }
+  	    
+  	    if (closeBtn) {
+  	        closeBtn.addEventListener('click', function() {
+  	            closeModal(deviceInfoModal);
+  	        });
+  	    }
+  	});
+
+// Theme Initialization (no toggle button)
+function initTheme() {
+    function applyTheme(isDark) {
+        if (isDark) {
+            document.body.classList.add('dark-mode');
+        } else {
+            document.body.classList.remove('dark-mode');
+        }
+    }
+
+    fetch('settings.json')
+    	.then(function(response) { return response.json(); })
+    	.then(function(settings) {
+            var themePref = (settings.Settings && settings.Settings.theme) || 'auto';
+            var useDark;
+            if (themePref === 'dark') {
+                useDark = true;
+            } else if (themePref === 'light') {
+                useDark = false;
+            } else {
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    useDark = true;
+                } else {
+                    var hour = new Date().getHours();
+                    useDark = (hour >= 18 || hour < 6);
+                }
+            }
+            applyTheme(useDark);
+        })
+    	.catch(function() {
+            var savedTheme = localStorage.getItem('portalTheme');
+            applyTheme(savedTheme === 'dark');
+        });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTheme);
+} else {
+    initTheme();
+}
+	function loadWifiRates() {
+		var xhr = new XMLHttpRequest();
+		xhr.open('GET', 'settings.json', true);
+		xhr.onreadystatechange = function() {
+			if (xhr.readyState === 4 && xhr.status === 200) {
+				var settings = JSON.parse(xhr.responseText);
+				var ratesPreview = document.getElementById('ratesPreview');
+				var ratesPreviewContainer = document.querySelector('.rates-preview');
+				if (ratesPreview && ratesPreviewContainer) {
+					var showPreview = settings.Settings && settings.Settings.wifi_rates_offline === true;
+					if (showPreview && settings.wifi_rates) {
+						ratesPreviewContainer.style.display = 'block';
+						var html = '';
+						for (var i = 0; i < settings.wifi_rates.length; i++) {
+							html += '<tr><td>' + settings.wifi_rates[i].amount + '</td><td>' + settings.wifi_rates[i].time + '</td><td>' + settings.wifi_rates[i].validity + '</td></tr>';
+						}
+						ratesPreview.innerHTML = html;
+					}
+				}
+			}
+		};
+		xhr.send();
+	}
+ 	setTimeout(loadWifiRates, 500);
