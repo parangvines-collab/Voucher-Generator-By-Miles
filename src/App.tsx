@@ -131,7 +131,7 @@ export default function App() {
                 </div>
                 <div>
                   <h1 className="text-sm font-bold tracking-tight text-white flex items-center gap-2">
-                    MikroTik Voucher Center
+                    JuanFi Voucher Center
                   </h1>
                   <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-semibold">
                     Portal Generator Panel

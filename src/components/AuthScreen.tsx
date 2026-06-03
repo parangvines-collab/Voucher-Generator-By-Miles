@@ -201,7 +201,7 @@ export function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
             <ShieldCheck className="w-8 h-8" />
           </div>
           <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-            MikroTik
+            JuanFi
           </h1>
           <p className="text-sm text-slate-400 mt-1">
             {isRegistering ? 'Create your operator account' : 'Voucher Generator'}

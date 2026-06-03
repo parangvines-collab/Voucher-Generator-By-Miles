@@ -47,6 +47,27 @@ export const ActivityLogger = {
     }).catch(() => {});
   },
 
+  async logActivityAsync(type: string, description: string, details: Record<string, any> = {}): Promise<void> {
+    const user = sessionStorage.getItem('username') || 'anonymous';
+    try {
+      const { data } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+      const userId = data?.session?.user?.id || null;
+      const { error } = await supabase.from('activity_logs').insert([{
+        user_id: userId,
+        username: user,
+        type,
+        description,
+        details,
+        timestamp: new Date().toISOString()
+      }]);
+      if (error) {
+        console.warn('Logging to Supabase omitted or table missing in logActivityAsync:', error.message);
+      }
+    } catch (err) {
+      console.error('Failed to log activity to Supabase synchronously:', err);
+    }
+  },
+
   async clearActivities(): Promise<void> {
     try {
       // Clear Supabase activity_logs

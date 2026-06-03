@@ -57,3 +57,17 @@ export interface Voucher {
 }
 
 export type VoucherTemplate = 'template1' | 'template2' | 'template3';
+
+export interface VoucherBatch {
+  id: string;
+  timestamp: string;
+  username: string;
+  count: number;
+  prefix: string;
+  time: number;
+  validity: number;
+  profile?: string;
+  template: VoucherTemplate;
+  hotspotName: string;
+  vouchers: Voucher[];
+}

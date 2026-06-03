@@ -9,12 +9,12 @@ import {
   formatTimeForDisplay
 } from '../utils/voucherHelpers';
 import { ActivityLogger } from '../utils/activityDB';
-import { Voucher, VoucherTemplate, CashInRequest, PortalKeyRecord, PromoHistoryItem } from '../types';
+import { Voucher, VoucherTemplate, CashInRequest, PortalKeyRecord, PromoHistoryItem, VoucherBatch } from '../types';
 import { VoucherCardList } from './VoucherCardList';
 import { 
   PiggyBank, ArrowDownCircle, BadgeAlert, KeyRound, Ticket, 
   Layers, Settings2, ShieldCheck, Download, Code, FileText, ClipboardCopy, Copy, Check, RefreshCw,
-  Smartphone, ExternalLink
+  Smartphone, ExternalLink, History, Trash2, Calendar
 } from 'lucide-react';
 
 interface DashboardScreenProps {
@@ -79,6 +79,11 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
   const [copiedScriptSuccess, setCopiedScriptSuccess] = useState(false);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
+
+  // Voucher history states for tracking previously generated batches
+  const [outputTab, setOutputTab] = useState<'live' | 'history'>('live');
+  const [voucherHistory, setVoucherHistory] = useState<VoucherBatch[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
   // Dialog (Alert, Confirm, Prompt) custom state to bypass blocked native popups in sandbox iframes
   const [dialog, setDialog] = useState<{
@@ -179,6 +184,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
   // Setup mount load and refresh polling
   useEffect(() => {
     loadUserMetadata();
+    loadVoucherHistory();
 
     // Interval to dynamically poll user status and GCash tickets
     const interval = setInterval(() => {
@@ -777,7 +783,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
 
 
   // Voucher generation form submit
-  const handleGenerateVouchers = (e: React.FormEvent) => {
+  const handleGenerateVouchers = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
     setFormSuccess('');
@@ -816,12 +822,95 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
       }
 
       setGeneratedVouchers(arr);
-      ActivityLogger.logActivity('voucher_generated', `Generated ${quantity} guest hotspot voucher(s) using template ${template}`, { count: quantity, prefix: trimmedPrefix });
+
+      // Save directly as a batch entry to Supabase database activity_logs synchronously
+      await ActivityLogger.logActivityAsync('voucher_generated', `Generated ${quantity} guest hotspot voucher(s) using template ${template}`, { 
+        count: quantity, 
+        prefix: trimmedPrefix,
+        vouchers: arr,
+        time: timeMinutes,
+        validity: validityMinutes,
+        profile: userProfile.trim(),
+        template,
+        hotspotName
+      });
+      
+      // Instantly reload user's Supabase voucher history
+      await loadVoucherHistory();
       
       setFormSuccess(`${quantity} vouchers successfully computed and printed below! Logged on operations log.`);
     } catch (err: any) {
       setFormError(err.message || 'Error executing ticket computation loop.');
     }
+  };
+
+  // Load history of generated voucher batches from Supabase database
+  const loadVoucherHistory = async () => {
+    setIsHistoryLoading(true);
+    try {
+      // Fetch of user's logs directly from Supabase activity logs table
+      const logs = await ActivityLogger.getActivitiesFromSupabase();
+      
+      const dbBatches: VoucherBatch[] = logs
+        .filter(log => log.type === 'voucher_generated' && log.user === currentUser)
+        .map(log => {
+          const details = log.details || {};
+          const vouchersList = details.vouchers || [];
+          return {
+            id: String(log.id),
+            timestamp: log.timestamp,
+            username: log.user,
+            count: details.count || vouchersList.length || 0,
+            prefix: details.prefix || 'VC',
+            time: details.time || 60,
+            validity: details.validity || 60,
+            profile: details.profile || '',
+            template: (details.template as VoucherTemplate) || 'template1',
+            hotspotName: details.hotspotName || 'MikroTik Hotspot',
+            vouchers: vouchersList
+          };
+        })
+        .filter(b => b.vouchers && b.vouchers.length > 0);
+
+      setVoucherHistory(dbBatches);
+    } catch (err) {
+      console.error('Failed loading voucher history from Supabase:', err);
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
+
+  // Delete a specific batch from history
+  const handleDeleteHistoryBatch = async (batchId: string, timestamp: string) => {
+    const confirmDelete = await showConfirm(
+      'Delete Voucher Batch',
+      'Are you sure you want to delete this voucher batch from your history records? This won\'t expire cards in your hotspot router, but will clear it from your history list.',
+      'Delete from History',
+      'Cancel'
+    );
+    if (!confirmDelete) return;
+
+    // Remove from activity_logs in Supabase database
+    try {
+      if (batchId && !batchId.startsWith('batch_')) {
+        await supabase.from('activity_logs').delete().eq('id', batchId);
+      } else {
+        const marginBefore = new Date(new Date(timestamp).getTime() - 10000).toISOString();
+        const marginAfter = new Date(new Date(timestamp).getTime() + 10000).toISOString();
+        
+        await supabase.from('activity_logs')
+          .delete()
+          .eq('type', 'voucher_generated')
+          .eq('username', currentUser)
+          .gte('timestamp', marginBefore)
+          .lte('timestamp', marginAfter);
+      }
+    } catch (err) {
+      console.warn('Could not delete database log entry:', err);
+    }
+
+    await loadVoucherHistory();
+    await showAlert('Batch Deleted', 'The selected voucher batch has been deleted from history.');
   };
 
   // Action: Export MikroTik RSC Script Download
@@ -1597,80 +1686,193 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
         <div className="lg:col-span-8 space-y-6">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl p-5.5 space-y-5">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-4">
-              <div className="flex items-center gap-2">
-                <Ticket className="w-5 h-5 text-indigo-400" />
-                <h3 className="font-bold text-slate-100">Live Voucher Catalog Output ({generatedVouchers.length})</h3>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setOutputTab('live')}
+                  className={`flex items-center gap-2 pb-2 border-b-2 font-bold text-sm transition-all focus:outline-none cursor-pointer ${
+                    outputTab === 'live'
+                      ? 'border-indigo-500 text-slate-100'
+                      : 'border-transparent text-slate-450 hover:text-slate-200'
+                  }`}
+                >
+                  <Ticket className="w-4 h-4 text-indigo-400" />
+                  Live Output ({generatedVouchers.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOutputTab('history');
+                    loadVoucherHistory();
+                  }}
+                  className={`flex items-center gap-2 pb-2 border-b-2 font-bold text-sm transition-all focus:outline-none cursor-pointer ${
+                    outputTab === 'history'
+                      ? 'border-indigo-500 text-slate-100'
+                      : 'border-transparent text-slate-450 hover:text-slate-200'
+                  }`}
+                >
+                  <History className="w-4 h-4 text-indigo-400" />
+                  Voucher History ({voucherHistory.length})
+                </button>
               </div>
             </div>
 
-            {generatedVouchers.length > 0 && (
-              <div className="space-y-4 animate-fade-in">
+            {outputTab === 'live' && (
+              <>
+                {generatedVouchers.length > 0 ? (
+                  <div className="space-y-4 animate-fade-in">
+                    {/* Additional file export utilities */}
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button
+                        onClick={handleExportCSV}
+                        className="px-3.5 py-2 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-200 rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 focus:outline-none cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Save CSV Table
+                      </button>
+                      <button
+                        onClick={handleExportRSC}
+                        className="px-3.5 py-2 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-200 rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 focus:outline-none cursor-pointer"
+                      >
+                        <Code className="w-3.5 h-3.5 text-indigo-400" />
+                        Save RSC Script
+                      </button>
+                      <button
+                        onClick={handleExportPDF}
+                        className="px-3.5 py-2 bg-slate-850 hover:bg-[#8b5a2b]/20 border border-[#8b5a2b]/30 text-amber-500 rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 focus:outline-none cursor-pointer"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        Print / Download PDF cards
+                      </button>
+                    </div>
 
-                {/* Additional file export utilities */}
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <button
-                    onClick={handleExportCSV}
-                    className="px-3.5 py-2 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-200 rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 focus:outline-none"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    Save CSV Table
-                  </button>
-                  <button
-                    onClick={handleExportRSC}
-                    className="px-3.5 py-2 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-200 rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 focus:outline-none"
-                  >
-                    <Code className="w-3.5 h-3.5 text-indigo-400" />
-                    Save RSC Script
-                  </button>
-                  <button
-                    onClick={handleExportPDF}
-                    className="px-3.5 py-2 bg-slate-850 hover:bg-[#8b5a2b]/20 border border-[#8b5a2b]/30 text-amber-500 rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 focus:outline-none"
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    Print / Download PDF cards
-                  </button>
-                </div>
+                    {/* Voucher Script Preview representing formatted MikroTik ROS script directly below download list */}
+                    <div className="bg-slate-950/60 rounded-xl border border-slate-800 p-4 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-slate-450 tracking-wide uppercase">
+                          voucher script preview
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleCopyVoucherScript}
+                          className="px-2.5 py-1 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                        >
+                          {copiedScriptSuccess ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-400" />
+                              Copied!
+                            </>
+                          ) : (
+                            <>
+                              <ClipboardCopy className="w-3 h-3 text-indigo-400" />
+                              Copy Script
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <pre className="max-h-52 overflow-y-auto w-full bg-slate-950 font-mono text-[10.5px] leading-relaxed text-slate-400 p-3 rounded-lg border border-slate-900 scrollbar-thin select-all whitespace-pre-wrap break-all">
+                          {generateMikroTikScript(generatedVouchers, hotspotName)}
+                        </pre>
+                      </div>
+                    </div>
 
-                {/* Voucher Script Preview representing formatted MikroTik ROS script directly below download list */}
-                <div className="bg-slate-950/60 rounded-xl border border-slate-800 p-4 space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-450 tracking-wide uppercase">
-                      voucher script preview
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleCopyVoucherScript}
-                      className="px-2.5 py-1 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer"
-                    >
-                      {copiedScriptSuccess ? (
-                        <>
-                          <Check className="w-3 h-3 text-emerald-400" />
-                          Copied!
-                        </>
-                      ) : (
-                        <>
-                          <ClipboardCopy className="w-3 h-3 text-indigo-400" />
-                          Copy Script
-                        </>
-                      )}
-                    </button>
+
+
                   </div>
-                  <div className="relative">
-                    <pre className="max-h-52 overflow-y-auto w-full bg-slate-950 font-mono text-[10.5px] leading-relaxed text-slate-400 p-3 rounded-lg border border-slate-900 scrollbar-thin select-all whitespace-pre-wrap break-all">
-                      {generateMikroTikScript(generatedVouchers, hotspotName)}
-                    </pre>
-                  </div>
-                </div>
-
-              </div>
+                ) : (
+                  <VoucherCardList
+                    vouchers={[]}
+                    template={template}
+                    hotspotName={hotspotName}
+                  />
+                )}
+              </>
             )}
 
-            {generatedVouchers.length === 0 && (
-              <VoucherCardList
-                vouchers={[]}
-                template={template}
-                hotspotName={hotspotName}
-              />
+            {outputTab === 'history' && (
+              <div className="space-y-4 animate-fade-in">
+                {isHistoryLoading ? (
+                  <div className="text-center py-12 text-slate-500 font-medium">
+                    <RefreshCw className="w-10 h-10 mx-auto animate-spin mb-3 text-indigo-400" />
+                    Fetching generated voucher history...
+                  </div>
+                ) : voucherHistory.length === 0 ? (
+                  <div className="text-center py-12 text-slate-500 font-medium border border-dashed border-slate-800 rounded-xl bg-slate-950/20">
+                    <History className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                    No generated voucher batches found in your history log.
+                  </div>
+                ) : (
+                  <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1 scrollbar-thin">
+                    {voucherHistory.map((batch) => {
+                      const date = new Date(batch.timestamp);
+                      return (
+                        <div key={batch.id} className="bg-slate-950/40 border border-slate-800/80 hover:border-slate-700/40 rounded-xl p-4 transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                          <div className="space-y-1.5 flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[10px] font-mono text-indigo-400 font-semibold bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {date.toLocaleString()}
+                              </span>
+                              <span className="text-[10px] text-slate-500 font-mono">ID: {batch.id.substring(0, 14)}</span>
+                              {batch.username && batch.username !== currentUser && (
+                                <span className="text-[10px] text-pink-400 border border-pink-500/20 bg-pink-500/5 px-1.5 py-0.5 rounded-md">
+                                  Operator: {batch.username}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                              <span>Batch of <strong className="text-emerald-400">{batch.count || batch.vouchers.length}</strong> vouchers</span>
+                              <span className="text-xs text-slate-450 font-normal">
+                                (prefix <strong className="text-slate-300 font-mono font-bold">{batch.prefix}</strong>, duration: {formatTimeForDisplay(batch.time)})
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-450 truncate">
+                              Hotspot: <strong className="text-slate-350 font-medium">{batch.hotspotName}</strong> 
+                              {batch.profile ? ` • Profile: ${batch.profile}` : ''}
+                              {` • Price: PHP ${batch.vouchers[0]?.amount || 5}`}
+                              {batch.vouchers[0]?.validity ? ` • Validity: ${formatTimeForDisplay(batch.vouchers[0].validity)}` : ''}
+                            </p>
+                          </div>
+                          
+                          <div className="flex gap-2 w-full md:w-auto justify-end shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setGeneratedVouchers(batch.vouchers);
+                                setTemplate(batch.template || 'template1');
+                                setHotspotName(batch.hotspotName || 'MikroTik Hotspot');
+                                setPrefix(batch.prefix || 'VC');
+                                if (batch.vouchers[0]) {
+                                  setVoucherAmount(batch.vouchers[0].amount);
+                                  setTimeMinutes(batch.vouchers[0].time);
+                                  setValidityMinutes(batch.vouchers[0].validity);
+                                  setQuantity(batch.vouchers.length);
+                                  setUserProfile(batch.vouchers[0].profile || '');
+                                }
+                                setOutputTab('live');
+                              }}
+                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-md shadow-indigo-600/15 flex items-center gap-1 select-none"
+                              title="Load batch elements back into active layout controls"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" />
+                              Load Batch
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteHistoryBatch(batch.id, batch.timestamp)}
+                              className="p-2 text-slate-550 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors cursor-pointer border border-slate-800/60 hover:border-rose-500/20"
+                              title="Remove batch history from records"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
