@@ -22,6 +22,16 @@ interface DashboardScreenProps {
   onUpdateBalance?: () => void;
 }
 
+const DEFAULT_MIKROTIK_SCRIPT = `# Enhanced JuanFi Portal Script By: Miles
+# Copy and paste this script into your MikroTik terminal
+
+/ip hotspot set [find] addresses-per-mac=1
+/ip hotspot user profile set [find] address-pool=none idle-timeout=none keepalive-timeout=00:00:03 shared-users=1
+/ip hotspot profile set [find] login-by=cookie,http-chap,http-pap,mac-cookie,mac,https
+/ip hotspot profile set [find] login-by=cookie,http-chap,http-pap,mac-cookie
+/ip firewall address-list add list=reminder-allow-milesportal-site address=www.milesportal.online
+/ip hotspot walled-garden ip add action=accept disabled=no !dst-address dst-address-list=reminder-allow-milesportal-site !dst-port !protocol !src-address !src-address-list comment="allow milesportal site"`;
+
 export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScreenProps) {
   // User balance states
   const [balance, setBalance] = useState(0);
@@ -44,6 +54,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
   const [juanfiTitle, setJuanfiTitle] = useState('𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)');
   const [juanfiDescription, setJuanfiDescription] = useState('“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”');
   const [juanfiPassword, setJuanfiPassword] = useState('juanfi123');
+  const [mikrotikScript, setMikrotikScript] = useState(DEFAULT_MIKROTIK_SCRIPT);
 
   // Submissions
   const [cashInRef, setCashInRef] = useState('');
@@ -84,6 +95,23 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
   const [outputTab, setOutputTab] = useState<'live' | 'history'>('live');
   const [voucherHistory, setVoucherHistory] = useState<VoucherBatch[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+
+  // Protected download modal workflow state
+  const [downloadModal, setDownloadModal] = useState<{
+    isOpen: boolean;
+    step: 'portalkey' | 'script' | 'ready';
+    portalKey: string;
+    pastedScript: string;
+    error: string;
+    copied: boolean;
+  }>({
+    isOpen: false,
+    step: 'portalkey',
+    portalKey: '',
+    pastedScript: '',
+    error: '',
+    copied: false
+  });
 
   // Dialog (Alert, Confirm, Prompt) custom state to bypass blocked native popups in sandbox iframes
   const [dialog, setDialog] = useState<{
@@ -181,29 +209,20 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
     });
   };
 
-  // Setup mount load and refresh polling
   useEffect(() => {
     loadUserMetadata();
-    loadVoucherHistory();
-
-    // Interval to dynamically poll user status and GCash tickets
-    const interval = setInterval(() => {
-      loadUserMetadata();
-    }, 5000);
-
-    return () => clearInterval(interval);
   }, [currentUser]);
 
   const loadUserMetadata = async () => {
-    // Set prices
     let fbPromoPrice = 30;
     let fbPortalKeyPrice = 50;
     let fbPortalKeyFirstPrice = 300;
     let fbPortalKeySubsequentPrice = 150;
     let fbJuanfiLink = '/Enhanced%20JuanFi%20Portal%20ver.5.0%20(16.8kb).zip';
-    let fbJuanfiTitle = '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)';
+    let fbJuanfiTitle = '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)';
     let fbJuanfiDesc = '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
     let fbJuanfiPassword = 'juanfi123';
+    let fbMikrotikScript = DEFAULT_MIKROTIK_SCRIPT;
 
     try {
       // 1. Fetch Global Setting Prices
@@ -215,9 +234,10 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
           if (s.key === 'portal_key_first_price') fbPortalKeyFirstPrice = parseInt(s.value) || 300;
           if (s.key === 'portal_key_subsequent_price') fbPortalKeySubsequentPrice = parseInt(s.value) || 150;
           if (s.key === 'juanfi_link') fbJuanfiLink = s.value || '/Enhanced%20JuanFi%20Portal%20ver.5.0%20(16.8kb).zip';
-          if (s.key === 'juanfi_title') fbJuanfiTitle = s.value || '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)';
+          if (s.key === 'juanfi_title') fbJuanfiTitle = s.value || '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)';
           if (s.key === 'juanfi_description') fbJuanfiDesc = s.value || '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
           if (s.key === 'juanfi_password') fbJuanfiPassword = s.value || 'juanfi123';
+          if (s.key === 'mikrotik_terminal_script') fbMikrotikScript = s.value || DEFAULT_MIKROTIK_SCRIPT;
         });
       }
     } catch (e) {}
@@ -230,6 +250,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
     setJuanfiTitle(fbJuanfiTitle);
     setJuanfiDescription(fbJuanfiDesc);
     setJuanfiPassword(fbJuanfiPassword);
+    setMikrotikScript(fbMikrotikScript);
 
     if (currentUser === 'admin') {
       setIsAccessGranted(true);
@@ -577,22 +598,23 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
         }
     };
 
-  const handleProtectedDownload = async (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleProtectedDownload = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    const inputPass = await showPrompt(
-      'Download Verification',
-      'Please enter any of the Portal Keys you purchased to download the Enhanced JuanFi Portal archive:',
-      '',
-      '66QQA-A2UII-U6AI6-2MUIQ',
-      'Verify & Download',
-      'Cancel',
-      'text'
-    );
-    if (inputPass === null) return;
-    
-    const keyTrimmed = inputPass.trim();
+    setDownloadModal({
+      isOpen: true,
+      step: 'portalkey',
+      portalKey: '',
+      pastedScript: '',
+      error: '',
+      copied: false
+    });
+  };
+
+  const handleVerifyPortalKeyInModal = async () => {
+    setDownloadModal(prev => ({ ...prev, error: '' }));
+    const keyTrimmed = downloadModal.portalKey.trim();
     if (!keyTrimmed) {
-      await showAlert('Invalid Key', 'Verification Key cannot be empty.');
+      setDownloadModal(prev => ({ ...prev, error: 'Verification Key cannot be empty.' }));
       return;
     }
 
@@ -606,50 +628,67 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
       const isKeyValid = !error && data && data.length > 0;
 
       if (isKeyValid) {
-        // Correct activation key! Trigger browser download
-        const downloadLink = document.createElement('a');
-        downloadLink.href = juanfiLink;
-        downloadLink.download = 'Enhanced JuanFi Portal ver.5.0 (16.8kb).zip';
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-        ActivityLogger.logActivity('juanfi_download', `Downloaded Enhanced JuanFi Portal using activation key verification`);
+        // Correct activation key! Clear error and move to next step 'script'
+        setDownloadModal(prev => ({ ...prev, step: 'script', error: '' }));
       } else {
         // Fallback check against local state userPortalKeys just in case
         const isLocalKeyValid = userPortalKeys.some(k => k.code === keyTrimmed);
-        if (isLocalKeyValid) {
-          const downloadLink = document.createElement('a');
-          downloadLink.href = juanfiLink;
-          downloadLink.download = 'Enhanced JuanFi Portal ver.5.0 (16.8kb).zip';
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
-          ActivityLogger.logActivity('juanfi_download', `Downloaded Enhanced JuanFi Portal using local validation key`);
-        } else if (keyTrimmed === juanfiPassword) {
-          // Keep the admin/global juanfiPassword as a root fallback/developer master key
-          const downloadLink = document.createElement('a');
-          downloadLink.href = juanfiLink;
-          downloadLink.download = 'Enhanced JuanFi Portal ver.5.0 (16.8kb).zip';
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
+        if (isLocalKeyValid || keyTrimmed === juanfiPassword) {
+          setDownloadModal(prev => ({ ...prev, step: 'script', error: '' }));
         } else {
-          await showAlert('Incorrect Key', 'The Activation Key you entered is invalid or does not exist in the Key Vault. Please purchase an Activation Key first.');
+          setDownloadModal(prev => ({ ...prev, error: 'The Activation Key you entered is invalid or does not exist. Please purchase an Activation Key first.' }));
         }
       }
     } catch (err) {
       const isLocalKeyValid = userPortalKeys.some(k => k.code === keyTrimmed);
       if (isLocalKeyValid || keyTrimmed === juanfiPassword) {
-        const downloadLink = document.createElement('a');
-        downloadLink.href = juanfiLink;
-        downloadLink.download = 'Enhanced JuanFi Portal ver.5.0 (16.8kb).zip';
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
+        setDownloadModal(prev => ({ ...prev, step: 'script', error: '' }));
       } else {
-        await showAlert('Verification Error', 'Failed to verify key. Please enter a valid Activation Key.');
+        setDownloadModal(prev => ({ ...prev, error: 'Failed to verify key. Please enter a valid Activation Key.' }));
       }
     }
+  };
+
+  const handleVerifyPastedScriptInModal = () => {
+    setDownloadModal(prev => ({ ...prev, error: '' }));
+    const pasted = downloadModal.pastedScript.trim();
+    if (!pasted) {
+      setDownloadModal(prev => ({ ...prev, error: 'Please paste the MikroTik terminal script to unlock download.' }));
+      return;
+    }
+
+    // List of key unique lines or phrases that must be in the pasted script as validation
+    const requiredPassages = [
+      "/ip hotspot set [find] addresses-per-mac=1",
+      "address-pool=none idle-timeout=none",
+      "reminder-allow-milesportal-site",
+      "milesportal.online"
+    ];
+
+    const isValid = requiredPassages.every(term => pasted.toLowerCase().includes(term.toLowerCase()));
+
+    if (!isValid) {
+      setDownloadModal(prev => ({ 
+        ...prev, 
+        error: 'Validation failed: The script pasted does not match the required MikroTik terminal script. Please make sure you copy the entire script block and paste it below.' 
+      }));
+      return;
+    }
+
+    // Valid script! Trigger the download
+    try {
+      const downloadLink = document.createElement('a');
+      downloadLink.href = juanfiLink;
+      downloadLink.download = 'Enhanced JuanFi Portal ver.5.0 (16.8kb).zip';
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      ActivityLogger.logActivity('juanfi_download', `Downloaded Enhanced JuanFi Portal after script validation`);
+    } catch (err) {
+      console.warn("Automated click download failed, offering link instead", err);
+    }
+
+    setDownloadModal(prev => ({ ...prev, step: 'ready', error: '' }));
   };
 
   // Buy Activation Key (PortalKey)
@@ -1250,6 +1289,25 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
               Authorized rent session valid until <strong className="text-slate-250 font-mono text-[11px] bg-slate-950/50 p-1 py-0.5 rounded border border-slate-855 ml-1">{expiration ? expiration.split('T')[0] : ''}</strong>
+            </p>
+          </div>
+        </div>
+      )}
+
+      {currentUser === 'admin' && (
+        <div className="bg-gradient-to-r from-indigo-950/20 via-slate-900/10 to-slate-900/10 border border-indigo-500/20 p-5.5 rounded-2xl flex items-center gap-3.5 shadow-md shadow-indigo-500/[0.01]">
+          <div className="w-10 h-10 bg-indigo-500/10 text-indigo-400 rounded-xl flex items-center justify-center border border-indigo-500/20 shadow-inner">
+            <Settings2 className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+              Admin Master Generator Mode
+              <span className="text-[10px] bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 px-2 py-0.5 rounded-full font-mono uppercase">
+                Unlimited Access
+              </span>
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Authorized master root controller has permanent license integration. Feel free to configure templates, generate high-quality vouchers, or export files.
             </p>
           </div>
         </div>
@@ -1880,7 +1938,6 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
       </div>
       )}
 
-      {/* Custom Dialog Overlay System */}
       {dialog.isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fade-in">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden transform scale-100 transition-all">
@@ -1937,6 +1994,212 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Protected Download Modal Workflow */}
+      {downloadModal.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden transform scale-100 transition-all flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-805 flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+                <Download className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-100 text-sm">Download Enhanced JuanFi Portal</h4>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Verification & Setup Steps</p>
+              </div>
+            </div>
+
+            {/* Content Area */}
+            <div className="p-5 overflow-y-auto space-y-4 flex-1 scrollbar-thin text-xs">
+              
+              {/* Error Alert bar inside modal */}
+              {downloadModal.error && (
+                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 px-3 py-2 rounded-xl text-xs font-medium flex items-start gap-2">
+                  <BadgeAlert className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span>{downloadModal.error}</span>
+                </div>
+              )}
+
+              {/* Step Indications */}
+              <div className="grid grid-cols-3 gap-2 pb-2">
+                <div className="flex flex-col gap-1">
+                  <div className={`h-1 rounded ${downloadModal.step === 'portalkey' ? 'bg-indigo-500' : 'bg-slate-850'}`} />
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${downloadModal.step === 'portalkey' ? 'text-indigo-400' : 'text-slate-500'}`}>1. PortalKey</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <div className={`h-1 rounded ${downloadModal.step === 'script' ? 'bg-indigo-500' : 'bg-slate-850'}`} />
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${downloadModal.step === 'script' ? 'text-indigo-400' : 'text-slate-500'}`}>2. Terminal Script</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <div className={`h-1 rounded ${downloadModal.step === 'ready' ? 'bg-emerald-500' : 'bg-slate-855'}`} />
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${downloadModal.step === 'ready' ? 'text-emerald-400' : 'text-slate-500'}`}>3. Complete</span>
+                </div>
+              </div>
+
+              {/* Step 1: PortalKey Input */}
+              {downloadModal.step === 'portalkey' && (
+                <div className="space-y-3">
+                  <p className="text-slate-300 leading-relaxed">
+                    Please enter any active **PortalKey** purchased for your MikroTik serial number to authorize the files download. If you do not have one, you can purchase it in key vault panel.
+                  </p>
+                  <div className="space-y-1.5">
+                    <label className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Your Activation Key / PortalKey Code</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. ABCD-EFGH-IJKL-MNOP"
+                      value={downloadModal.portalKey}
+                      onChange={(e) => setDownloadModal(prev => ({ ...prev, portalKey: e.target.value.toUpperCase() }))}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 outline-none focus:border-indigo-500 font-mono tracking-widest uppercase placeholder:font-sans placeholder:tracking-normal"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleVerifyPortalKeyInModal();
+                        }
+                      }}
+                      autoFocus
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: MikroTik Terminal Script copy and paste */}
+              {downloadModal.step === 'script' && (
+                <div className="space-y-3">
+                  <p className="text-slate-300 leading-relaxed">
+                    You must run the required MikroTik setup script in your router terminal first before downloading the files. Copy the terminal script and paste it in the validation field below:
+                  </p>
+
+                  <div className="bg-slate-955/80 rounded-xl border border-slate-800 p-3 space-y-2">
+                    <div className="flex justify-between items-center pb-2 border-b border-slate-900">
+                      <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">MikroTik Router terminal Script</span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(mikrotikScript);
+                            setDownloadModal(prev => ({ ...prev, copied: true }));
+                            setTimeout(() => setDownloadModal(prev => ({ ...prev, copied: false })), 2000);
+                          } catch (err) {}
+                        }}
+                        className="px-2.5 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-400 hover:text-indigo-350 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                      >
+                        {downloadModal.copied ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-400" />
+                            Copied!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            Copy Script
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <pre className="max-h-32 overflow-y-auto w-full bg-slate-950 font-mono text-[10px] leading-relaxed text-slate-450 p-2.5 rounded-lg border border-slate-900/60 scrollbar-thin whitespace-pre-wrap select-all">
+                      {mikrotikScript}
+                    </pre>
+                  </div>
+
+                  <div className="space-y-1.5 pt-1">
+                    <label className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+                      Paste the script here to verify & unlock download:
+                    </label>
+                    <textarea
+                      placeholder="Right click & paste the exact copied terminal script here..."
+                      value={downloadModal.pastedScript}
+                      onChange={(e) => setDownloadModal(prev => ({ ...prev, pastedScript: e.target.value }))}
+                      className="w-full h-24 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-[10.5px] font-mono text-slate-300 outline-none focus:border-indigo-500 scrollbar-thin placeholder:font-sans"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Verified & Ready */}
+              {downloadModal.step === 'ready' && (
+                <div className="text-center py-6 space-y-4 animate-fade-in">
+                  <div className="w-12 h-12 bg-emerald-500/10 text-emerald-400 flex items-center justify-center rounded-full mx-auto border border-emerald-500/20 animate-bounce">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <h5 className="font-bold text-sm text-slate-100">Verification & Setup Complete!</h5>
+                    <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                      Your download should have started. If it didn't trigger automatically, utilize the direct button below to download the Enhanced JuanFi Portal ZIP archive.
+                    </p>
+                  </div>
+                  <div className="pt-2 flex justify-center">
+                    <button
+                      onClick={() => {
+                        const downloadLink = document.createElement('a');
+                        downloadLink.href = juanfiLink;
+                        downloadLink.download = 'Enhanced JuanFi Portal ver.5.0 (16.8kb).zip';
+                        document.body.appendChild(downloadLink);
+                        downloadLink.click();
+                        document.body.removeChild(downloadLink);
+                      }}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-colors flex items-center gap-1.5 shadow-md shadow-emerald-500/10 cursor-pointer"
+                    >
+                      <Download className="w-4 h-4" />
+                      Direct Link Download ZIP
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="p-4 border-t border-slate-800 bg-slate-950/20 flex justify-between gap-3 shrink-0">
+              {downloadModal.step === 'portalkey' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setDownloadModal(prev => ({ ...prev, isOpen: false }))}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-300 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleVerifyPortalKeyInModal}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-colors shadow-md shadow-indigo-600/10 cursor-pointer"
+                  >
+                    Verify Key & Next
+                  </button>
+                </>
+              ) : downloadModal.step === 'script' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setDownloadModal(prev => ({ ...prev, step: 'portalkey', error: '' }))}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-755 text-slate-300 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Back to Key
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleVerifyPastedScriptInModal}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-colors shadow-md shadow-indigo-600/10 cursor-pointer"
+                  >
+                    Verify Script & Download
+                  </button>
+                </>
+              ) : (
+                <div className="w-full flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setDownloadModal(prev => ({ ...prev, isOpen: false }))}
+                    className="px-5 py-2 bg-slate-800 hover:bg-slate-750 text-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  >
+                    Finish Workflow
+                  </button>
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
       )}

@@ -6,8 +6,18 @@ import { supabase } from '../supabaseClient';
 import { 
   Users, DollarSign, Send, Lock, FileSpreadsheet, 
   Check, X, Eye, EyeOff, Calendar, PlusCircle, Trash, KeyRound, Link,
-  Wifi, WifiOff, Smartphone, ExternalLink
+  Wifi, WifiOff, Smartphone, ExternalLink, Terminal, ChevronDown, ChevronUp
 } from 'lucide-react';
+
+const DEFAULT_MIKROTIK_SCRIPT = `# Enhanced JuanFi Portal Script By: Miles
+# Copy and paste this script into your MikroTik terminal
+
+/ip hotspot set [find] addresses-per-mac=1
+/ip hotspot user profile set [find] address-pool=none idle-timeout=none keepalive-timeout=00:00:03 shared-users=1
+/ip hotspot profile set [find] login-by=cookie,http-chap,http-pap,mac-cookie,mac,https
+/ip hotspot profile set [find] login-by=cookie,http-chap,http-pap,mac-cookie
+/ip firewall address-list add list=reminder-allow-milesportal-site address=www.milesportal.online
+/ip hotspot walled-garden ip add action=accept disabled=no !dst-address dst-address-list=reminder-allow-milesportal-site !dst-port !protocol !src-address !src-address-list comment="allow milesportal site"`;
 
 export function AdminManagerScreen() {
   // Accounts
@@ -17,6 +27,22 @@ export function AdminManagerScreen() {
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
   const [isAdminPassVisible, setIsAdminPassVisible] = useState(false);
 
+  // Card minimization state
+  const [minimized, setMinimized] = useState<Record<string, boolean>>({
+    users: false,
+    deposits: false,
+    keys: true,
+    subscriptions: true,
+    telegram: true,
+    mikrotik: true,
+    password: true,
+    manualKey: true,
+  });
+
+  const toggleMinimized = (key: string) => {
+    setMinimized(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
   // Prices & Links
   const [promoPrice, setPromoPrice] = useState(30);
   const [portalKeyPrice, setPortalKeyPrice] = useState(50);
@@ -24,8 +50,12 @@ export function AdminManagerScreen() {
   const [portalKeySubsequentPrice, setPortalKeySubsequentPrice] = useState(150);
   const [juanfiLink, setJuanfiLink] = useState('/Enhanced%20JuanFi%20Portal%20ver.5.0%20(16.8kb).zip');
   const [juanfiTitle, setJuanfiTitle] = useState('𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)');
-  const [juanfiDescription, setJuanfiDescription] = useState('“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧𝐥𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”');
+  const [juanfiDescription, setJuanfiDescription] = useState('“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧λ𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”');
   const [juanfiPassword, setJuanfiPassword] = useState('juanfi123');
+
+  // MikroTik custom terminal script states
+  const [mikrotikScript, setMikrotikScript] = useState(DEFAULT_MIKROTIK_SCRIPT);
+  const [scriptMsg, setScriptMsg] = useState<{ success?: boolean; msg?: string }>({});
 
   // Telegram
   const [telegramBotToken, setTelegramBotToken] = useState('');
@@ -169,6 +199,7 @@ export function AdminManagerScreen() {
       let sbJuanfiPassword = 'juanfi123';
       let sbBotToken = '';
       let sbChatId = '';
+      let sbMikrotikScript = DEFAULT_MIKROTIK_SCRIPT;
 
       let localLastSeen: Record<string, string> = {};
       if (!errSettings && settings && settings.length > 0) {
@@ -184,6 +215,7 @@ export function AdminManagerScreen() {
           if (s.key === 'juanfi_title') sbJuanfiTitle = s.value || '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)';
           if (s.key === 'juanfi_description') sbJuanfiDesc = s.value || '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧λ𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
           if (s.key === 'juanfi_password') sbJuanfiPassword = s.value || 'juanfi123';
+          if (s.key === 'mikrotik_terminal_script') sbMikrotikScript = s.value || DEFAULT_MIKROTIK_SCRIPT;
         });
 
         // Load last_seen timestamps from global_settings as fallback
@@ -208,6 +240,7 @@ export function AdminManagerScreen() {
       setJuanfiPassword(sbJuanfiPassword);
       setTelegramBotToken(sbBotToken);
       setTelegramChatId(sbChatId);
+      setMikrotikScript(sbMikrotikScript);
 
       // 2. Load Profiles / Operators
       const { data: profiles, error: errProfiles } = await supabase.from('profiles').select('*');
@@ -583,6 +616,29 @@ export function AdminManagerScreen() {
 
     ActivityLogger.logActivity('setting_changed', `Changed JuanFi Portal download password`);
     loadAllData();
+  };
+
+  // Save MikroTik custom script
+  const handleSaveScript = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setScriptMsg({});
+    const scriptTrimmed = mikrotikScript.trim();
+    if (!scriptTrimmed) {
+      setScriptMsg({ success: false, msg: 'Script cannot be empty.' });
+      return;
+    }
+    try {
+      const { error } = await supabase.from('global_settings').upsert([{ key: 'mikrotik_terminal_script', value: scriptTrimmed }]);
+      if (error) {
+        setScriptMsg({ success: false, msg: 'Error saving script: ' + error.message });
+      } else {
+        setScriptMsg({ success: true, msg: 'MikroTik terminal script updated successfully!' });
+        ActivityLogger.logActivity('setting_changed', 'Changed MikroTik terminal script customizer text');
+        setTimeout(() => setScriptMsg({}), 4000);
+      }
+    } catch (err: any) {
+      setScriptMsg({ success: false, msg: err.message || 'Error occurred saving setup script.' });
+    }
   };
 
   // Telegram settings save
@@ -1170,19 +1226,32 @@ export function AdminManagerScreen() {
                 <h3 className="font-bold text-slate-100">Registered Portal Users</h3>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddOperatorForm(!showAddOperatorForm)}
-                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg transition-all flex items-center gap-1 shrink-0 cursor-pointer shadow-md shadow-indigo-600/10"
-                >
-                  <PlusCircle className="w-3.5 h-3.5" />
-                  Add Operator
-                </button>
+                {!minimized.users && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddOperatorForm(!showAddOperatorForm)}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg transition-all flex items-center gap-1 shrink-0 cursor-pointer shadow-md shadow-indigo-600/10"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    Add Operator
+                  </button>
+                )}
                 <span className="text-xs bg-slate-850 px-2.5 py-1 rounded-full text-slate-400 border border-slate-800 shrink-0">
                   {Object.keys(users).length + 1} Total Accounts
                 </span>
+                <button
+                  type="button"
+                  onClick={() => toggleMinimized('users')}
+                  className="p-1.5 bg-slate-850 hover:bg-slate-850 border border-slate-800 rounded-lg text-slate-400 hover:text-slate-100 transition-colors"
+                  title="Toggle section"
+                >
+                  {minimized.users ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                </button>
               </div>
             </div>
+
+            {!minimized.users && (
+              <>
 
             {showAddOperatorForm && (
               <form onSubmit={handleAddOperator} className="p-5 bg-slate-950/40 border-b border-slate-800 space-y-4">
@@ -1346,6 +1415,8 @@ export function AdminManagerScreen() {
             <div className="bg-slate-950/40 p-3.5 text-center text-[10px] text-slate-500 border-t border-slate-800">
               Note: Root admin controls can overwrite expiration periods manually. Date validation supports YYYY-MM-DD formats.
             </div>
+              </>
+            )}
           </div>
 
           {/* Practical Cash-In Manual Approving Queue */}
@@ -1355,14 +1426,29 @@ export function AdminManagerScreen() {
                 <h3 className="font-bold text-slate-100">Deposit tickets & GCash Loads</h3>
                 <p className="text-xs text-slate-400">Match reference receipts to grant operators creation tokens</p>
               </div>
-              <button
-                onClick={handleClearProcessedRequests}
-                disabled={processedCashIn.length === 0}
-                className="px-3 py-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white text-xs font-medium rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Wipe processed rows
-              </button>
+              <div className="flex items-center gap-2">
+                {!minimized.deposits && (
+                  <button
+                    onClick={handleClearProcessedRequests}
+                    disabled={processedCashIn.length === 0}
+                    className="px-3 py-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white text-xs font-medium rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    Wipe processed rows
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => toggleMinimized('deposits')}
+                  className="p-1.5 bg-slate-850 hover:bg-slate-850 border border-slate-800 rounded-lg text-slate-400 hover:text-slate-100 transition-colors"
+                  title="Toggle section"
+                >
+                  {minimized.deposits ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
+
+            {!minimized.deposits && (
+              <>
 
             <div className="p-5 space-y-4">
               {/* Pending Queue */}
@@ -1448,6 +1534,8 @@ export function AdminManagerScreen() {
               </div>
 
             </div>
+              </>
+            )}
           </div>
 
           {/* PortalKey Purchases history list */}
@@ -1457,14 +1545,29 @@ export function AdminManagerScreen() {
                 <h3 className="font-bold text-slate-100 font-sans">Bought Activation Keys</h3>
                 <p className="text-xs text-slate-400">Keys automatically generated according to users hardware components</p>
               </div>
-              <button
-                onClick={handleClearPortalKeys}
-                disabled={portalKeyRequests.length === 0}
-                className="px-3 py-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white text-xs font-medium rounded-lg transition-all disabled:opacity-40"
-              >
-                Clear records
-              </button>
+              <div className="flex items-center gap-2">
+                {!minimized.keys && (
+                  <button
+                    onClick={handleClearPortalKeys}
+                    disabled={portalKeyRequests.length === 0}
+                    className="px-3 py-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white text-xs font-medium rounded-lg transition-all disabled:opacity-40 cursor-pointer"
+                  >
+                    Clear records
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => toggleMinimized('keys')}
+                  className="p-1.5 bg-slate-850 hover:bg-slate-850 border border-slate-800 rounded-lg text-slate-400 hover:text-slate-100 transition-colors"
+                  title="Toggle section"
+                >
+                  {minimized.keys ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
+
+            {!minimized.keys && (
+              <>
 
             <div className="p-5 space-y-2.5">
               {portalKeyRequests.length === 0 ? (
@@ -1504,6 +1607,8 @@ export function AdminManagerScreen() {
                 ))
               )}
             </div>
+              </>
+            )}
           </div>
 
           {/* Promo voucher sub history */}
@@ -1513,14 +1618,29 @@ export function AdminManagerScreen() {
                 <h3 className="font-bold text-slate-100">Subscription Rent Purchases</h3>
                 <p className="text-xs text-slate-400">Operators who self-purchased 1-Month generator license</p>
               </div>
-              <button
-                onClick={handleClearPromoHistory}
-                disabled={promoHistory.length === 0}
-                className="px-3 py-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white text-xs font-medium rounded-lg transition-all"
-              >
-                Clear logs
-              </button>
+              <div className="flex items-center gap-2">
+                {!minimized.subscriptions && (
+                  <button
+                    onClick={handleClearPromoHistory}
+                    disabled={promoHistory.length === 0}
+                    className="px-3 py-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white text-xs font-medium rounded-lg transition-all cursor-pointer"
+                  >
+                    Clear logs
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => toggleMinimized('subscriptions')}
+                  className="p-1.5 bg-slate-850 hover:bg-slate-850 border border-slate-800 rounded-lg text-slate-400 hover:text-slate-100 transition-colors"
+                  title="Toggle section"
+                >
+                  {minimized.subscriptions ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
+
+            {!minimized.subscriptions && (
+              <>
 
             <div className="p-5 divide-y divide-slate-850/60">
               {promoHistory.length === 0 ? (
@@ -1551,6 +1671,8 @@ export function AdminManagerScreen() {
                 ))
               )}
             </div>
+              </>
+            )}
           </div>
 
         </div>
@@ -1560,10 +1682,23 @@ export function AdminManagerScreen() {
           
           {/* Telegram Settings form */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <Send className="w-4 h-4 text-blue-400" />
-              <h3 className="font-bold text-slate-100">Telegram Bot Setup</h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Send className="w-4 h-4 text-blue-400" />
+                <h3 className="font-bold text-slate-100">Telegram Bot Setup</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => toggleMinimized('telegram')}
+                className="p-1 bg-slate-850 hover:bg-slate-850 border border-slate-800 rounded-lg text-slate-400 hover:text-slate-100 transition-colors"
+                title="Toggle section"
+              >
+                {minimized.telegram ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+              </button>
             </div>
+            
+            {!minimized.telegram && (
+              <>
             
             <p className="text-xs text-slate-400 leading-relaxed">
               Enable instant messaging routing for cash-in load alerts. Real-time updates delivered straight to Gcash collectors.
@@ -1614,14 +1749,95 @@ export function AdminManagerScreen() {
                 </button>
               </div>
             </form>
+              </>
+            )}
+          </div>
+
+          {/* MikroTik Terminal Script Editor Card */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Terminal className="w-4 h-4 text-indigo-400" />
+                <h3 className="font-bold text-slate-100 font-sans">MikroTik Script Customizer</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => toggleMinimized('mikrotik')}
+                className="p-1 bg-slate-850 hover:bg-slate-855 border border-slate-800 rounded-lg text-slate-400 hover:text-slate-100 transition-colors"
+                title="Toggle section"
+              >
+                {minimized.mikrotik ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+              </button>
+            </div>
+            
+            {!minimized.mikrotik && (
+              <>
+            
+            <p className="text-xs text-slate-405 leading-relaxed">
+              Design the terminal setup script that operator/hotspot customers copy and execute on their MikroTik router to verify authentication.
+            </p>
+
+            {scriptMsg.msg && (
+              <div className={`p-3 rounded-xl text-xs border ${scriptMsg.success ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-450'}`}>
+                {scriptMsg.msg}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveScript} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-slate-400 mb-1.5 font-semibold uppercase tracking-wider text-[10px]">Terminal Script template</label>
+                <textarea
+                  required
+                  placeholder="Paste rules / script commands..."
+                  value={mikrotikScript}
+                  onChange={(e) => setMikrotikScript(e.target.value)}
+                  className="w-full h-48 bg-slate-950/60 border border-slate-805 rounded-xl px-3.5 py-2.5 text-[11px] font-mono text-slate-250 placeholder-slate-700 focus:outline-none focus:border-indigo-500 scrollbar-thin"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl text-xs transition-colors cursor-pointer shadow-md shadow-indigo-600/10"
+                >
+                  Save Setup Script
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Reset script template back to default original configuration?')) {
+                      setMikrotikScript(DEFAULT_MIKROTIK_SCRIPT);
+                    }
+                  }}
+                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-250 font-bold rounded-xl text-xs transition-all border border-slate-750 cursor-pointer"
+                >
+                  Reset Default
+                </button>
+              </div>
+            </form>
+              </>
+            )}
           </div>
 
           {/* Change Admin password */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <Lock className="w-4 h-4 text-orange-400" />
-              <h3 className="font-bold text-slate-100">Update Admin Password</h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-orange-400" />
+                <h3 className="font-bold text-slate-100">Update Admin Password</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => toggleMinimized('password')}
+                className="p-1 bg-slate-850 hover:bg-slate-855 border border-slate-800 rounded-lg text-slate-400 hover:text-slate-100 transition-colors"
+                title="Toggle section"
+              >
+                {minimized.password ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+              </button>
             </div>
+            
+            {!minimized.password && (
+              <>
 
             {passwordMsg.msg && (
               <div className={`p-3 rounded-xl text-xs border ${passwordMsg.success ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}>
@@ -1673,14 +1889,29 @@ export function AdminManagerScreen() {
                 Change Admin Credentials
               </button>
             </form>
+              </>
+            )}
           </div>
 
           {/* Generate PortalKey for Users */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <KeyRound className="w-4 h-4 text-emerald-400" />
-              <h3 className="font-bold text-slate-100">Generate PortalKey</h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-emerald-400" />
+                <h3 className="font-bold text-slate-100">Generate PortalKey</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => toggleMinimized('manualKey')}
+                className="p-1 bg-slate-850 hover:bg-slate-855 border border-slate-800 rounded-lg text-slate-400 hover:text-slate-100 transition-colors"
+                title="Toggle section"
+              >
+                {minimized.manualKey ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+              </button>
             </div>
+            
+            {!minimized.manualKey && (
+              <>
 
             <p className="text-xs text-slate-400 leading-relaxed">
               Manually generate activation keys for any operator user.
@@ -1747,6 +1978,8 @@ export function AdminManagerScreen() {
                 Generate & Save Key
               </button>
             </form>
+              </>
+            )}
           </div>
 
         </div>
