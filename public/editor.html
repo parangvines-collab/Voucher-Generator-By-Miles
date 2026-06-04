@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enhanced Portal settings.json Editor</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              850: '#1b2330',
+              805: '#1e293b',
+              950: '#0b0f19',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;550;700&display=swap font-display" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    textarea {
+      tab-size: 4;
+    }
+    /* Simple custom scrollbar for extreme aesthetic */
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0f19;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-105 min-h-screen flex flex-col antialiased">
+
+  <!-- Main Top Branding Navigation Header -->
+  <nav class="bg-slate-900 border-b border-slate-800/80 sticky top-0 z-40 px-6 py-4">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <!-- SVG Logo -->
+        <div class="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+          <svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="font-black tracking-tight text-white text-base md:text-lg flex items-center gap-2">
+            Enhanced Portal settings.json Editor
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-mono tracking-wide font-normal">
+              v5.1 Standalone
+            </span>
+          </h1>
+          <p class="text-[11px] text-slate-400">MicroTik Hotspot JSON profile configurator for JuanFi & Miles Portals</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2.5">
+        <!-- Load settings.json directly from server button -->
+        <button id="btn-fetch" onclick="fetchServerConfig()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-750 border border-slate-700/80 text-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 4H15"></path></svg>
+          Reload from Server
+        </button>
+
+        <!-- Import File selector -->
+        <label class="px-3 py-1.5 bg-slate-800 hover:bg-slate-750 border border-slate-700/80 text-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+          Upload Existing
+          <input type="file" id="file-uploader" accept=".json" class="hidden" onchange="uploadJsonFile(this)">
+        </label>
+
+        <!-- Download settings.json button -->
+        <button onclick="downloadJsonFile()" class="px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-950/30 transition-all flex items-center gap-1.5 cursor-pointer">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          Download settings.json
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Auto-saving notification banner -->
+  <div id="save-banner" class="bg-emerald-500/10 text-emerald-400 text-xs px-6 py-2.5 border-b border-emerald-500/10 hidden">
+    <div class="max-w-7xl mx-auto flex items-center gap-2 font-medium">
+      <svg class="w-4 h-4 animate-bounce shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+      <span id="save-banner-text">Autosaved configuration successfully</span>
+    </div>
+  </div>
+
+  <!-- Drag and drop zone envelope -->
+  <div id="drop-zone" class="flex-1 flex flex-col py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full gap-8">
+    
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      
+      <!-- LEFT MODULE: INTERACTIVE DESK (7 Columns) -->
+      <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+        
+        <!-- Tab menus Header -->
+        <div class="flex border-b border-slate-800/80 bg-slate-950/40">
+          <button id="tab-general" onclick="switchFormTab('general')" class="flex-1 px-4 py-3.5 text-xs font-bold border-b-2 border-indigo-500 text-white bg-slate-800/30 transition-all focus:outline-none flex items-center justify-center gap-1.5">
+            ⚙️ Switches
+          </button>
+          <button id="tab-rates" onclick="switchFormTab('rates')" class="flex-1 px-4 py-3.5 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all focus:outline-none flex items-center justify-center gap-1.5">
+            💰 Offline WiFi Price Rates
+          </button>
+          <button id="tab-vendo" onclick="switchFormTab('vendo')" class="flex-1 px-4 py-3.5 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all focus:outline-none flex items-center justify-center gap-1.5">
+            📡 Gateway IP Addresses
+          </button>
+          <button id="tab-advanced" onclick="switchFormTab('advanced')" class="flex-1 px-4 py-3.5 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all focus:outline-none flex items-center justify-center gap-1.5">
+            🛡️ E-Wallet & Off-Mode
+          </button>
+        </div>
+
+        <div class="p-6">
+          
+          <!-- FORM SUBSECTION A: SWITCHES & TEXTS -->
+          <div id="sub-general" class="space-y-6">
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <!-- portalKey direct edit -->
+              <div class="col-span-1 bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                <label class="block text-[10px] text-indigo-400 font-extrabold uppercase tracking-widest mb-1">Loaded portalKey</label>
+                <input type="text" id="inp-portalKey" oninput="syncFormToJSON()" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 font-mono text-emerald-400 font-bold uppercase tracking-wider text-xs focus:outline-none focus:border-indigo-500">
+                <p class="text-[9px] text-slate-500 mt-1">Verification License Key purchased from Admin portal</p>
+              </div>
+
+              <!-- currency symbol -->
+              <div class="col-span-1 bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                <label class="block text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1">Currency Symbol</label>
+                <input type="text" id="inp-currency" oninput="syncFormToJSON()" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 font-bold text-slate-200 text-xs focus:outline-none focus:border-indigo-500 text-center font-mono">
+                <p class="text-[9px] text-slate-500 mt-1">e.g., ₱ , $ , Rp or RM for your network system</p>
+              </div>
+            </div>
+
+            <!-- Brand labels: Footer text, footer redirect, Marquee scrolling notice -->
+            <div class="bg-slate-950/40 p-4 border border-slate-800 rounded-xl space-y-4">
+              <h3 class="font-bold text-slate-200 text-xs uppercase tracking-wide border-b border-slate-800 pb-2">Footer info & notice scroll</h3>
+              
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-1">Footer Brand Text</label>
+                  <input type="text" id="inp-footer_text" oninput="syncFormToJSON()" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                  <label class="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-1">Footer hyperlink redirect</label>
+                  <input type="url" id="inp-footer_link" oninput="syncFormToJSON()" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-indigo-500 font-mono text-[11px]">
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-1">Notice Scroll Marquee Billboard text</label>
+                <textarea id="inp-marquee_text" oninput="syncFormToJSON()" rows="2" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-indigo-500 leading-normal resize-none"></textarea>
+              </div>
+            </div>
+
+            <!-- Switches Grid array -->
+            <div class="bg-slate-950/40 p-5 border border-slate-800 rounded-xl space-y-4">
+              <h3 class="font-bold text-slate-200 text-xs uppercase tracking-wide border-b border-slate-800 pb-2">Aesthetic & Functional Switches</h3>
+              
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3.5 text-xs text-slate-350">
+                
+                <!-- username_only toggle -->
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="block font-bold text-slate-300">Login Username Only</span>
+                    <span class="text-[9px] text-slate-500">Hides password textfield for vouchers</span>
+                  </div>
+                  <input type="checkbox" id="inp-username_only" onchange="syncFormToJSON()" class="w-4.5 h-4.5 rounded border-slate-800 text-indigo-650 bg-slate-900 accent-indigo-500 focus:ring-0 cursor-pointer">
+                </div>
+
+                <!-- vendo_option selector -->
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="block font-bold text-slate-300">vendoOption Mode</span>
+                    <span class="text-[9px] text-slate-500">Configure single/multi-vendo selection</span>
+                  </div>
+                  <select id="inp-vendo_option" onchange="syncFormToJSON()" class="bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-bold focus:outline-none">
+                    <option value="0">0 - Single Vendo</option>
+                    <option value="1">1 - Multi Manual Select</option>
+                    <option value="2">2 - Multi Auto Select</option>
+                  </select>
+                </div>
+
+                <!-- voucher_input toggle -->
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="block font-bold text-slate-300">Show Voucher Inputs</span>
+                    <span class="text-[9px] text-slate-500">Enables direct voucher fields in portal</span>
+                  </div>
+                  <input type="checkbox" id="inp-voucher_input" onchange="syncFormToJSON()" class="w-4.5 h-4.5 rounded border-slate-800 text-indigo-650 accent-indigo-500 focus:ring-0 cursor-pointer">
+                </div>
+
+                <!-- insert_coin toggle -->
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="block font-bold text-slate-300">Show "Insert Coin" Button</span>
+                    <span class="text-[9px] text-slate-500">Provides active action parameters</span>
+                  </div>
+                  <input type="checkbox" id="inp-insert_coin" onchange="syncFormToJSON()" class="w-4.5 h-4.5 rounded border-slate-800 text-indigo-650 accent-indigo-500 focus:ring-0 cursor-pointer">
+                </div>
+
+                <!-- pause_button toggle -->
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="block font-bold text-slate-300">Show "Pause Time" Feature</span>
+                    <span class="text-[9px] text-slate-500">Allows offline customer pausing</span>
+                  </div>
+                  <input type="checkbox" id="inp-pause_button" onchange="syncFormToJSON()" class="w-4.5 h-4.5 rounded border-slate-800 text-indigo-650 accent-indigo-500 focus:ring-0 cursor-pointer">
+                </div>
+
+                <!-- member_login toggle -->
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="block font-bold text-slate-300">Enable Member Login</span>
+                    <span class="text-[9px] text-slate-500">Renders credentials registration card</span>
+                  </div>
+                  <input type="checkbox" id="inp-member_login" onchange="syncFormToJSON()" class="w-4.5 h-4.5 rounded border-slate-800 text-indigo-650 accent-indigo-500 focus:ring-0 cursor-pointer">
+                </div>
+
+                <!-- member_logout_button toggle -->
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="block font-bold text-slate-300">Member Logout Option</span>
+                    <span class="text-[9px] text-slate-500">Allows logging out from active network</span>
+                  </div>
+                  <input type="checkbox" id="inp-member_logout_button" onchange="syncFormToJSON()" class="w-4.5 h-4.5 rounded border-slate-800 text-indigo-650 accent-indigo-500 focus:ring-0 cursor-pointer">
+                </div>
+
+                <!-- trial_logout_button toggle -->
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="block font-bold text-slate-300">Trial Logout Button</span>
+                    <span class="text-[9px] text-slate-500">Renders trial reset or pause parameter</span>
+                  </div>
+                  <input type="checkbox" id="inp-trial_logout_button" onchange="syncFormToJSON()" class="w-4.5 h-4.5 rounded border-slate-800 text-indigo-650 accent-indigo-500 focus:ring-0 cursor-pointer">
+                </div>
+
+                <!-- subscription toggle -->
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="block font-bold text-slate-300">Show Subscription Info</span>
+                    <span class="text-[9px] text-slate-500">Lists current premium plans information</span>
+                  </div>
+                  <input type="checkbox" id="inp-subscription" onchange="syncFormToJSON()" class="w-4.5 h-4.5 rounded border-slate-800 text-indigo-650 accent-indigo-500 focus:ring-0 cursor-pointer">
+                </div>
+
+                <!-- internet_status toggle -->
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="block font-bold text-slate-300">Show Internet Status Node</span>
+                    <span class="text-[9px] text-slate-500">Validates if WAN gateway can ping external</span>
+                  </div>
+                  <input type="checkbox" id="inp-internet_status" onchange="syncFormToJSON()" class="w-4.5 h-4.5 rounded border-slate-800 text-indigo-650 accent-indigo-500 focus:ring-0 cursor-pointer">
+                </div>
+
+                <!-- wifi_rates_show toggle -->
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="block font-bold text-slate-300">Show WiFi Rates Matrix</span>
+                    <span class="text-[9px] text-slate-500">Renders price matrix on screen</span>
+                  </div>
+                  <input type="checkbox" id="inp-wifi_rates_show" onchange="syncFormToJSON()" class="w-4.5 h-4.5 rounded border-slate-800 text-indigo-650 accent-indigo-500 focus:ring-0 cursor-pointer">
+                </div>
+
+                <!-- mikhmon database override toggle -->
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="block font-bold text-slate-300">Mikhmon vouchers mapping</span>
+                    <span class="text-[9px] text-slate-500">Synchronizes with custom RouterOS profile API</span>
+                  </div>
+                  <input type="checkbox" id="inp-mikhmon" onchange="syncFormToJSON()" class="w-4.5 h-4.5 rounded border-slate-800 text-indigo-650 accent-indigo-500 focus:ring-0 cursor-pointer">
+                </div>
+
+                <!-- theme override selector -->
+                <div class="flex items-center justify-between col-span-1 sm:col-span-2 pt-2.5 border-t border-slate-800/80">
+                  <div>
+                    <span class="block font-bold text-slate-300">Default Interface Theme</span>
+                    <span class="text-[9px] text-slate-500">Auto dark-mode based on clock or absolute dark/light selection</span>
+                  </div>
+                  <select id="inp-theme" onchange="syncFormToJSON()" class="bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-xs text-slate-200 font-bold focus:outline-none">
+                    <option value="auto">Automatic (Auto-Dark Mode)</option>
+                    <option value="dark">Always Dark mode</option>
+                    <option value="light">Always Light mode</option>
+                  </select>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+
+
+          <!-- FORM SUBSECTION B: OFFLINE WIFI RATES -->
+          <div id="sub-rates" class="space-y-4 hidden animate-fade-in">
+            <div class="flex justify-between items-center bg-slate-950/60 p-3.5 border border-slate-800 rounded-xl">
+              <div>
+                <h3 class="font-bold text-slate-200 text-xs uppercase tracking-wide">Offline WiFi Price Rates</h3>
+                <p class="text-[9.5px] text-slate-500">Configure voucher amounts, durations, and account limits display table</p>
+              </div>
+              <button onclick="addRateRow()" type="button" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] uppercase tracking-wider font-extrabold transition-all flex items-center gap-1 cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Add Price rate
+              </button>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-800/90 bg-slate-950/30">
+              <table class="w-full text-left font-sans text-xs">
+                <thead>
+                  <tr class="bg-slate-950 text-slate-400 text-[10px] border-b border-slate-800 uppercase font-bold tracking-wider">
+                    <th class="px-4 py-3 text-center">Amount Label</th>
+                    <th class="px-4 py-3 text-center">Time Limit / Hours</th>
+                    <th class="px-4 py-3 text-center">Account Validity Limit</th>
+                    <th class="px-4 py-3 text-right pr-6 w-20">Remove</th>
+                  </tr>
+                </thead>
+                <tbody id="rates-table-body" class="divide-y divide-slate-850/50">
+                  <!-- JS dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+
+          <!-- FORM SUBSECTION C: VENDO ROUTER ADDRESSES -->
+          <div id="sub-vendo" class="space-y-4 hidden animate-fade-in">
+            <div class="flex justify-between items-center bg-slate-950/60 p-3.5 border border-slate-800 rounded-xl">
+              <div>
+                <h3 class="font-bold text-slate-200 text-xs uppercase tracking-wide">Gateway Nodes (VendoAddresses)</h3>
+                <p class="text-[9.5px] text-slate-500">Route mapping targets. Router Gateway lists representing active SSID clients</p>
+              </div>
+              <button onclick="addVendoRow()" type="button" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] uppercase tracking-wider font-extrabold transition-all flex items-center gap-1 cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Add Gateway
+              </button>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-800/90 bg-slate-950/30">
+              <table class="w-full text-left font-sans text-xs">
+                <thead>
+                  <tr class="bg-slate-950 text-slate-400 text-[10px] border-b border-slate-800 uppercase font-bold tracking-wider">
+                    <th class="px-4 py-3">WiFi SSID Match</th>
+                    <th class="px-4 py-3">Vendo Brand label</th>
+                    <th class="px-4 py-3 text-center w-36">Gateway Router IP</th>
+                    <th class="px-4 py-3 text-center w-28">VLAN/Bridge If</th>
+                    <th class="px-4 py-3 text-right pr-6 w-20">Remove</th>
+                  </tr>
+                </thead>
+                <tbody id="vendo-table-body" class="divide-y divide-slate-850/50">
+                  <!-- JS dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+
+          <!-- FORM SUBSECTION D: ADVANCED E-WALLET & OFFLINE PRESETS -->
+          <div id="sub-advanced" class="space-y-6 hidden animate-fade-in">
+            
+            <!-- GCash E-Wallet panel -->
+            <div class="bg-slate-950/40 p-5 border border-slate-800 rounded-xl space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                <h3 class="font-bold text-slate-200 text-xs uppercase tracking-wide">E-Wallet GCash Integration</h3>
+                <input type="checkbox" id="inp-ewallet_enabled" onchange="syncFormToJSON()" class="w-4.5 h-4.5 rounded border-slate-800 accent-indigo-500 focus:ring-0 cursor-pointer">
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div>
+                  <label class="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-1">GCash Portal API Key</label>
+                  <input type="text" id="inp-ewallet-portalKey" oninput="syncFormToJSON()" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-indigo-500 font-mono text-[11px]">
+                </div>
+                <div>
+                  <label class="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-1">E-Wallet Gateway Server IP</label>
+                  <input type="text" id="inp-ewallet-serverIP" oninput="syncFormToJSON()" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-indigo-500 font-mono text-center">
+                </div>
+                <div>
+                  <label class="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-1">Username Field Target ID</label>
+                  <input type="text" id="inp-ewallet-usernameField" oninput="syncFormToJSON()" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                  <label class="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-1">Submit Button Element ID</label>
+                  <input type="text" id="inp-ewallet-submitButton" oninput="syncFormToJSON()" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-indigo-500">
+                </div>
+              </div>
+            </div>
+
+            <!-- Offline Internet Block alert warning texts -->
+            <div class="bg-slate-950/40 p-5 border border-slate-800 rounded-xl space-y-4">
+              <h3 class="font-bold text-slate-200 text-xs uppercase tracking-wide border-b border-slate-800 pb-2">No Internet Offline Settings</h3>
+              
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="block font-bold text-slate-300">Disable Coin Insert OFFLINE</span>
+                    <span class="text-[9px] text-slate-500">Locks coin slots if router loses WAN</span>
+                  </div>
+                  <input type="checkbox" id="inp-no_internet-insertcoin" onchange="syncFormToJSON()" class="w-4.5 h-4.5 rounded border-slate-800 accent-indigo-500 focus:ring-0 cursor-pointer">
+                </div>
+
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="block font-bold text-slate-300">Auto Pause session OFFLINE</span>
+                    <span class="text-[9px] text-slate-500">Pauses active clients when fiber drops</span>
+                  </div>
+                  <input type="checkbox" id="inp-no_internet-auto_pause" onchange="syncFormToJSON()" class="w-4.5 h-4.5 rounded border-slate-800 accent-indigo-500 focus:ring-0 cursor-pointer">
+                </div>
+              </div>
+
+              <div class="space-y-3.5 text-xs">
+                <div>
+                  <label class="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-1">Offline Alert Title Header</label>
+                  <input type="text" id="inp-no_internet-title" oninput="syncFormToJSON()" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-indigo-500 font-bold">
+                </div>
+                <div>
+                  <label class="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-1">Offline Warning description body text</label>
+                  <textarea id="inp-no_internet-text" oninput="syncFormToJSON()" rows="2" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-indigo-500 resize-none leading-relaxed"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Prefix settings & binding switches -->
+            <div class="bg-slate-950/40 p-5 border border-slate-800 rounded-xl space-y-4">
+              <h3 class="font-bold text-slate-200 text-xs uppercase tracking-wide border-b border-slate-800 pb-2">Security parameters</h3>
+              
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="block font-bold text-slate-300">MAC Address auto-binding</span>
+                    <span class="text-[9px] text-slate-500">Binds clients physically on connection</span>
+                  </div>
+                  <input type="checkbox" id="inp-mac_binding" onchange="syncFormToJSON()" class="w-4.5 h-4.5 rounded border-slate-800 accent-indigo-500 focus:ring-0 cursor-pointer">
+                </div>
+
+                <div>
+                  <label class="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-1">Voucher Prefix Codes (separated by comma)</label>
+                  <input type="text" id="inp-subscription_prefix" oninput="syncFormToJSON()" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 font-mono text-xs text-indigo-400 font-semibold focus:outline-none focus:border-indigo-500">
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+      <!-- RIGHT MODULE: REAL-TIME RAW JSON CODE VIEW & EDITOR (5 Columns) -->
+      <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden flex flex-col h-[520px] lg:h-[720px] sticky lg:top-24">
+        
+        <!-- Header status row -->
+        <div class="bg-slate-950/50 border-b border-slate-800 px-5 py-3.5 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full bg-indigo-500"></div>
+            <span class="text-xs uppercase font-extrabold tracking-wider text-slate-300">Live JSON Console Output</span>
+          </div>
+          <!-- Syntax validator badge -->
+          <span id="validator-badge" class="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/15 font-semibold">
+            ✓ Syntax Valid
+          </span>
+        </div>
+
+        <div class="relative flex-1 block">
+          <textarea id="raw-json-editor" oninput="syncJSONToForm(this.value)" class="w-full h-full bg-slate-950 p-5 font-mono text-xs text-slate-300 border-none focus:outline-none focus:ring-0 cursor-text leading-relaxed select-text" spellcheck="false" placeholder="Generating real-time settings.json schema output..."></textarea>
+        </div>
+
+        <!-- Copy and Download shortcut buttons in raw console footer -->
+        <div class="bg-slate-950/20 border-t border-slate-800/80 p-3.5 flex items-center justify-between gap-2.5">
+          <button onclick="copyToClipboard()" type="button" id="btn-copy" class="px-3.5 py-1.5 scale-95 hover:scale-100 bg-slate-800 hover:bg-slate-750 text-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 focus:outline-none cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m-5 4h5m-5 4h5m-5 4h5"></path></svg>
+            Copy Clipboard
+          </button>
+          
+          <button onclick="resetToFallbackPresets()" type="button" class="text-[10px] text-slate-500 hover:text-slate-400 font-extrabold uppercase tracking-wide transition-colors">
+            Reset to defaults
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Big Sticky bottom Footer metadata credits -->
+  <footer class="bg-slate-900 border-t border-slate-800/50 py-5 text-center px-4 mt-auto">
+    <p class="text-xs text-slate-500">
+      Designed for <strong class="text-slate-300">Miles Portal & JuanFi Gateways</strong>. Drag or load settings.json file to customize offline pages, rates or vendo mappings.
+    </p>
+  </footer>
+
+  <!-- SCRIPT ENGINE RUNTIME -->
+  <script>
+    // State storage model representing settings.json
+    let currentConfig = {
+      "Settings" : {
+        "vendo_option"          :   0,
+        "username_only"         :   true,
+        "currency"              :   "₱",
+        "footer_text"           :   "Miles",
+        "footer_link"           :   "https://www.facebook.com/miles112501/",
+        "marquee_text"          :   "ANG GUGMA MURAG PISOWIFI... KUTOB RA SA TIME, PAGKAHUROT, DISCONNECT DAYON.",
+        "voucher_input"         :   true,
+        "insert_coin"           :   true,
+        "pause_button"          :   true,
+        "member_logout_button"  :   true,
+        "trial_logout_button"   :   true,
+        "subscription"          :   true,
+        "internet_status"       :   true,
+        "ewallet_enabled"       :   false,
+        "member_login"          :   true,
+        "wifi_rates_show"       :   true,
+        "wifi_rates_offline"    :   false,
+        "mikhmon"               :   false,
+        "theme"                 :   "auto"
+      },
+      "wifi_rates" : [
+        { "amount": "₱ 5", "time": "3H", "validity": "1D" },
+        { "amount": "₱ 10", "time": "7H:2M", "validity": "1D" },
+        { "amount": "₱ 15", "time": "12H:2M", "validity": "1D" },
+        { "amount": "₱ 20", "time": "1D", "validity": "1D:12H" },
+        { "amount": "₱ 50", "time": "3D", "validity": "3D:2M" }
+      ],
+      "portalKey" : "XXXXX-XXXXX-XXXXX-XXXXX",
+      "mac_binding" : false,
+      "subscription_prefix" : ["ME", "Vc", "MO", "Ec"],
+      "ewallet" : {
+        "portalKey" : "67e8053ea7223",
+        "serverIP" : "10.0.1.254",
+        "usernameField" : "username",
+        "submitButton" : "submit"
+      },
+      "no_internet_settings" : {
+        "insertcoin"               :    false,
+        "auto_pause"               :    false,
+        "internet_status_tittle"   :    "No Internet",
+        "internet_status_text"     :    "Some actions aren't available OFFLINE. Please contact the vendo owner."
+      },
+      "VendoAddresses" : [
+        {
+          "ssid"            :   "EA PISO WIFI",
+          "vendoName"       :   "EA VENDO",
+          "vendoIp"         :   "10.0.0.254",
+          "interfaceName"   :   "bridge-HS"
+        },
+        {
+          "ssid"            :   "LAUSA PISO WIFI",
+          "vendoName"       :   "LAUSA VENDO",
+          "vendoIp"         :   "10.0.1.254",
+          "interfaceName"   :   "vlan1"
+        },
+        {
+          "ssid"            :   "JONATHAN PISO WIFI",
+          "vendoName"       :   "JONATHAN VENDO",
+          "vendoIp"         :   "10.0.2.254",
+          "interfaceName"   :   "vlan2"
+        }
+      ]
+    };
+
+    const defaultBackupPreset = JSON.parse(JSON.stringify(currentConfig));
+
+    // Form Navigation switches
+    function switchFormTab(activeTabId) {
+      const tabs = ['general', 'rates', 'vendo', 'advanced'];
+      tabs.forEach(t => {
+        const btn = document.getElementById('tab-' + t);
+        const sub = document.getElementById('sub-' + t);
+        if (t === activeTabId) {
+          btn.classList.add('border-indigo-500', 'text-white', 'bg-slate-800/30');
+          btn.classList.remove('border-transparent', 'text-slate-400');
+          sub.classList.remove('hidden');
+        } else {
+          btn.classList.remove('border-indigo-500', 'text-white', 'bg-slate-800/30');
+          btn.classList.add('border-transparent', 'text-slate-400');
+          sub.classList.add('hidden');
+        }
+      });
+    }
+
+    // Attempt to load settings.json initially from the server context
+    window.addEventListener('DOMContentLoaded', () => {
+      fetchServerConfig();
+      setupDragAndDrop();
+    });
+
+    function fetchServerConfig() {
+      fetch('settings.json')
+        .then(res => {
+          if (!res.ok) throw new Error('settings.json file missing on the host');
+          return res.json();
+        })
+        .then(data => {
+          currentConfig = migrateIncomingConfig(data);
+          updateJSONConsole();
+          populateFormFromConfig();
+          showNotification('Success', 'Successfully loaded live settings.json from server!');
+        })
+        .catch(err => {
+          console.warn('Fetch fallback to standard preset guidelines:', err);
+          updateJSONConsole();
+          populateFormFromConfig();
+        });
+    }
+
+    // Gracefully handle fields mapping or migrations of old settings schemas
+    function migrateIncomingConfig(raw) {
+      const base = JSON.parse(JSON.stringify(defaultBackupPreset));
+      // Object values merging
+      if (raw.Settings) {
+        Object.keys(raw.Settings).forEach(k => {
+          base.Settings[k] = raw.Settings[k];
+        });
+      }
+      if (raw.wifi_rates) base.wifi_rates = raw.wifi_rates;
+      if (raw.portalKey !== undefined) base.portalKey = raw.portalKey;
+      if (raw.mac_binding !== undefined) base.mac_binding = raw.mac_binding;
+      if (raw.subscription_prefix !== undefined) base.subscription_prefix = raw.subscription_prefix;
+      
+      if (raw.ewallet) {
+        Object.keys(raw.ewallet).forEach(k => {
+          base.ewallet[k] = raw.ewallet[k];
+        });
+      }
+      if (raw.no_internet_settings) {
+        Object.keys(raw.no_internet_settings).forEach(k => {
+          base.no_internet_settings[k] = raw.no_internet_settings[k];
+        });
+      }
+      if (raw.VendoAddresses) base.VendoAddresses = raw.VendoAddresses;
+      return base;
+    }
+
+    // Populate the interactive DOM form elements with current configuration states
+    function populateFormFromConfig() {
+      // 1. Inputs & Text General
+      document.getElementById('inp-portalKey').value = currentConfig.portalKey || '';
+      document.getElementById('inp-currency').value = currentConfig.Settings.currency || '₱';
+      document.getElementById('inp-footer_text').value = currentConfig.Settings.footer_text || '';
+      document.getElementById('inp-footer_link').value = currentConfig.Settings.footer_link || '';
+      document.getElementById('inp-marquee_text').value = currentConfig.Settings.marquee_text || '';
+
+      // Toggles General
+      document.getElementById('inp-username_only').checked = !!currentConfig.Settings.username_only;
+      document.getElementById('inp-vendo_option').value = currentConfig.Settings.vendo_option !== undefined ? currentConfig.Settings.vendo_option.toString() : "0";
+      document.getElementById('inp-voucher_input').checked = !!currentConfig.Settings.voucher_input;
+      document.getElementById('inp-insert_coin').checked = !!currentConfig.Settings.insert_coin;
+      document.getElementById('inp-pause_button').checked = !!currentConfig.Settings.pause_button;
+      document.getElementById('inp-member_login').checked = !!currentConfig.Settings.member_login;
+      document.getElementById('inp-member_logout_button').checked = !!currentConfig.Settings.member_logout_button;
+      document.getElementById('inp-trial_logout_button').checked = !!currentConfig.Settings.trial_logout_button;
+      document.getElementById('inp-subscription').checked = !!currentConfig.Settings.subscription;
+      document.getElementById('inp-internet_status').checked = !!currentConfig.Settings.internet_status;
+      document.getElementById('inp-wifi_rates_show').checked = !!currentConfig.Settings.wifi_rates_show;
+      document.getElementById('inp-mikhmon').checked = !!currentConfig.Settings.mikhmon;
+      document.getElementById('inp-theme').value = currentConfig.Settings.theme || 'auto';
+
+      // Advanced subtab
+      document.getElementById('inp-ewallet_enabled').checked = !!currentConfig.Settings.ewallet_enabled;
+      document.getElementById('inp-ewallet-portalKey').value = (currentConfig.ewallet && currentConfig.ewallet.portalKey) || '';
+      document.getElementById('inp-ewallet-serverIP').value = (currentConfig.ewallet && currentConfig.ewallet.serverIP) || '';
+      if (currentConfig.ewallet) {
+        document.getElementById('inp-ewallet-usernameField').value = currentConfig.ewallet.usernameField || 'username';
+        document.getElementById('inp-ewallet-submitButton').value = currentConfig.ewallet.submitButton || 'submit';
+      }
+
+      // No Internet settings
+      if (currentConfig.no_internet_settings) {
+        document.getElementById('inp-no_internet-insertcoin').checked = !!currentConfig.no_internet_settings.insertcoin;
+        document.getElementById('inp-no_internet-auto_pause').checked = !!currentConfig.no_internet_settings.auto_pause;
+        document.getElementById('inp-no_internet-title').value = currentConfig.no_internet_settings.internet_status_tittle || '';
+        document.getElementById('inp-no_internet-text').value = currentConfig.no_internet_settings.internet_status_text || '';
+      }
+
+      document.getElementById('inp-mac_binding').checked = !!currentConfig.mac_binding;
+      document.getElementById('inp-subscription_prefix').value = (currentConfig.subscription_prefix || []).join(', ');
+
+      // Populate Wifi rates table list dynamic
+      populateRatesTable();
+
+      // Populate Gateway Addresses table list complex
+      populateVendoTable();
+    }
+
+    // Synchronize HTML Form element values back into currentConfig state
+    function syncFormToJSON() {
+      currentConfig.portalKey = document.getElementById('inp-portalKey').value;
+      currentConfig.Settings.currency = document.getElementById('inp-currency').value;
+      currentConfig.Settings.footer_text = document.getElementById('inp-footer_text').value;
+      currentConfig.Settings.footer_link = document.getElementById('inp-footer_link').value;
+      currentConfig.Settings.marquee_text = document.getElementById('inp-marquee_text').value;
+
+      currentConfig.Settings.username_only = document.getElementById('inp-username_only').checked;
+      currentConfig.Settings.vendo_option = parseInt(document.getElementById('inp-vendo_option').value) || 0;
+      currentConfig.Settings.voucher_input = document.getElementById('inp-voucher_input').checked;
+      currentConfig.Settings.insert_coin = document.getElementById('inp-insert_coin').checked;
+      currentConfig.Settings.pause_button = document.getElementById('inp-pause_button').checked;
+      currentConfig.Settings.member_login = document.getElementById('inp-member_login').checked;
+      currentConfig.Settings.member_logout_button = document.getElementById('inp-member_logout_button').checked;
+      currentConfig.Settings.trial_logout_button = document.getElementById('inp-trial_logout_button').checked;
+      currentConfig.Settings.subscription = document.getElementById('inp-subscription').checked;
+      currentConfig.Settings.internet_status = document.getElementById('inp-internet_status').checked;
+      currentConfig.Settings.wifi_rates_show = document.getElementById('inp-wifi_rates_show').checked;
+      currentConfig.Settings.mikhmon = document.getElementById('inp-mikhmon').checked;
+      currentConfig.Settings.theme = document.getElementById('inp-theme').value;
+
+      currentConfig.Settings.ewallet_enabled = document.getElementById('inp-ewallet_enabled').checked;
+      if (!currentConfig.ewallet) currentConfig.ewallet = {};
+      currentConfig.ewallet.portalKey = document.getElementById('inp-ewallet-portalKey').value;
+      currentConfig.ewallet.serverIP = document.getElementById('inp-ewallet-serverIP').value;
+      currentConfig.ewallet.usernameField = document.getElementById('inp-ewallet-usernameField').value;
+      currentConfig.ewallet.submitButton = document.getElementById('inp-ewallet-submitButton').value;
+
+      if (!currentConfig.no_internet_settings) currentConfig.no_internet_settings = {};
+      currentConfig.no_internet_settings.insertcoin = document.getElementById('inp-no_internet-insertcoin').checked;
+      currentConfig.no_internet_settings.auto_pause = document.getElementById('inp-no_internet-auto_pause').checked;
+      currentConfig.no_internet_settings.internet_status_tittle = document.getElementById('inp-no_internet-title').value;
+      currentConfig.no_internet_settings.internet_status_text = document.getElementById('inp-no_internet-text').value;
+
+      currentConfig.mac_binding = document.getElementById('inp-mac_binding').checked;
+      
+      const prefixes = document.getElementById('inp-subscription_prefix').value;
+      currentConfig.subscription_prefix = prefixes.split(',').map(s => s.trim()).filter(s => s.length > 0);
+
+      // Re-compile WiFi Rates rows state
+      const rateRows = document.querySelectorAll('.rate-row-elem');
+      const nextRates = [];
+      rateRows.forEach(row => {
+        const amount = row.querySelector('.rate-amount').value;
+        const time = row.querySelector('.rate-time').value;
+        const validity = row.querySelector('.rate-validity').value;
+        nextRates.push({ amount, time, validity });
+      });
+      currentConfig.wifi_rates = nextRates;
+
+      // Re-compile Gateway rows state
+      const vendoRows = document.querySelectorAll('.vendo-row-elem');
+      const nextVendos = [];
+      vendoRows.forEach(row => {
+        const ssid = row.querySelector('.vendo-ssid').value;
+        const vendoName = row.querySelector('.vendo-name').value;
+        const vendoIp = row.querySelector('.vendo-ip').value;
+        const interfaceName = row.querySelector('.vendo-interfaceName').value;
+        nextVendos.push({ ssid, vendoName, vendoIp, interfaceName });
+      });
+      currentConfig.VendoAddresses = nextVendos;
+
+      updateJSONConsole();
+      triggerAutosavedFlag();
+    }
+
+    // Custom JSON Formatter to match byte-for-byte spacing style of the original settings.json
+    function formatSettingsJSON(obj) {
+      if (!obj || typeof obj !== 'object') return JSON.stringify(obj, null, 4);
+      
+      const parts = [];
+      parts.push("{");
+
+      // 1. Settings section
+      if (obj.Settings) {
+        parts.push('    "Settings" : {');
+        const settingsKeys = [
+          "vendo_option",
+          "username_only",
+          "currency",
+          "footer_text",
+          "footer_link",
+          "marquee_text",
+          "voucher_input",
+          "insert_coin",
+          "pause_button",
+          "member_logout_button",
+          "trial_logout_button",
+          "subscription",
+          "internet_status",
+          "ewallet_enabled",
+          "member_login",
+          "wifi_rates_show",
+          "wifi_rates_offline",
+          "mikhmon",
+          "theme"
+        ];
+        
+        const allKeys = Object.keys(obj.Settings);
+        const visited = new Set();
+        const orderedKeys = [];
+        
+        settingsKeys.forEach(k => {
+          if (allKeys.includes(k)) {
+            orderedKeys.push(k);
+            visited.add(k);
+          }
+        });
+        
+        allKeys.forEach(k => {
+          if (!visited.has(k)) {
+            orderedKeys.push(k);
+          }
+        });
+
+        let maxKeyLen = 24;
+        orderedKeys.forEach(k => {
+          const keyStr = `"${k}"`;
+          if (keyStr.length > maxKeyLen) {
+            maxKeyLen = keyStr.length;
+          }
+        });
+
+        orderedKeys.forEach((key, idx) => {
+          const keyStr = `"${key}"`;
+          const paddedKey = keyStr.padEnd(maxKeyLen, " ");
+          const valStr = JSON.stringify(obj.Settings[key]);
+          const comma = idx === orderedKeys.length - 1 ? "" : ",";
+          parts.push(`        ${paddedKey} :   ${valStr}${comma}`);
+        });
+        parts.push("    },");
+        parts.push("");
+      }
+
+      // 2. wifi_rates
+      if (obj.wifi_rates) {
+        parts.push('    "wifi_rates" : [');
+        obj.wifi_rates.forEach((rate, idx) => {
+          const comma = idx === obj.wifi_rates.length - 1 ? "" : ",";
+          const amountStr = JSON.stringify(rate.amount || "");
+          const timeStr = JSON.stringify(rate.time || "");
+          const validityStr = JSON.stringify(rate.validity || "");
+          parts.push(`        { "amount": ${amountStr}, "time": ${timeStr}, "validity": ${validityStr} }${comma}`);
+        });
+        parts.push("    ],");
+        parts.push("");
+      }
+
+      // 3. portalKey
+      if (obj.portalKey !== undefined) {
+        parts.push(`    "portalKey" : ${JSON.stringify(obj.portalKey)},`);
+      }
+      
+      // 4. mac_binding
+      if (obj.mac_binding !== undefined) {
+        parts.push(`    "mac_binding" : ${JSON.stringify(obj.mac_binding)},`);
+      }
+
+      // 5. subscription_prefix
+      if (obj.subscription_prefix !== undefined) {
+        parts.push(`    "subscription_prefix" : ${JSON.stringify(obj.subscription_prefix)},`);
+        parts.push("");
+      }
+
+      // 6. ewallet
+      if (obj.ewallet) {
+        parts.push('    "ewallet" : {');
+        const ewalletKeys = ["portalKey", "serverIP", "usernameField", "submitButton"];
+        const allKeys = Object.keys(obj.ewallet);
+        const visited = new Set();
+        const orderedKeys = [];
+        
+        ewalletKeys.forEach(k => {
+          if (allKeys.includes(k)) {
+            orderedKeys.push(k);
+            visited.add(k);
+          }
+        });
+        allKeys.forEach(k => {
+          if (!visited.has(k)) {
+            orderedKeys.push(k);
+          }
+        });
+
+        orderedKeys.forEach((key, idx) => {
+          const keyStr = `"${key}"`;
+          const valStr = JSON.stringify(obj.ewallet[key]);
+          const comma = idx === orderedKeys.length - 1 ? "" : ",";
+          parts.push(`        ${keyStr} : ${valStr}${comma}`);
+        });
+        parts.push("    },");
+        parts.push("");
+      }
+
+      // 7. no_internet_settings
+      if (obj.no_internet_settings) {
+        parts.push('    "no_internet_settings" : {');
+        const nisKeys = ["insertcoin", "auto_pause", "internet_status_tittle", "internet_status_text"];
+        const allKeys = Object.keys(obj.no_internet_settings);
+        const visited = new Set();
+        const orderedKeys = [];
+        
+        nisKeys.forEach(k => {
+          if (allKeys.includes(k)) {
+            orderedKeys.push(k);
+            visited.add(k);
+          }
+        });
+        allKeys.forEach(k => {
+          if (!visited.has(k)) {
+            orderedKeys.push(k);
+          }
+        });
+
+        let maxNISLen = 27;
+        orderedKeys.forEach(k => {
+          const keyStr = `"${k}"`;
+          if (keyStr.length > maxNISLen) {
+            maxNISLen = keyStr.length;
+          }
+        });
+
+        orderedKeys.forEach((key, idx) => {
+          const keyStr = `"${key}"`;
+          const paddedKey = keyStr.padEnd(maxNISLen, " ");
+          const valStr = JSON.stringify(obj.no_internet_settings[key]);
+          const comma = idx === orderedKeys.length - 1 ? "" : ",";
+          parts.push(`        ${paddedKey} :    ${valStr}${comma}`);
+        });
+        parts.push("    },");
+        parts.push("");
+      }
+
+      // 8. VendoAddresses
+      if (obj.VendoAddresses) {
+        parts.push('    "VendoAddresses" : [');
+        obj.VendoAddresses.forEach((node, idx) => {
+          parts.push("        {");
+          const vaKeys = ["ssid", "vendoName", "vendoIp", "interfaceName"];
+          const allKeys = Object.keys(node);
+          const visited = new Set();
+          const orderedKeys = [];
+          
+          vaKeys.forEach(k => {
+            if (allKeys.includes(k)) {
+              orderedKeys.push(k);
+              visited.add(k);
+            }
+          });
+          allKeys.forEach(k => {
+            if (!visited.has(k)) {
+              orderedKeys.push(k);
+            }
+          });
+
+          let maxValen = 18;
+          orderedKeys.forEach(k => {
+            const keyStr = `"${k}"`;
+            if (keyStr.length > maxValen) {
+              maxValen = keyStr.length;
+            }
+          });
+
+          orderedKeys.forEach((key, kIdx) => {
+            const keyStr = `"${key}"`;
+            const paddedKey = keyStr.padEnd(maxValen, " ");
+            const valStr = JSON.stringify(node[key]);
+            const comma = kIdx === orderedKeys.length - 1 ? "" : ",";
+            parts.push(`            ${paddedKey} :   ${valStr}${comma}`);
+          });
+          
+          const endComma = idx === obj.VendoAddresses.length - 1 ? "" : ",";
+          parts.push(`        }${endComma}`);
+        });
+        parts.push("    ]");
+      }
+
+      parts.push("}");
+      return parts.join("\n");
+    }
+
+    // Update real-time Raw Textarea panel
+    function updateJSONConsole() {
+      const el = document.getElementById('raw-json-editor');
+      el.value = formatSettingsJSON(currentConfig);
+      setValidatorBadge(true);
+    }
+
+    // Parse user edits written inside raw editor back into inputs with instant validator verification
+    function syncJSONToForm(textVal) {
+      try {
+        const parsed = JSON.parse(textVal);
+        currentConfig = parsed;
+        setValidatorBadge(true);
+        populateFormFromConfig();
+        triggerAutosavedFlag();
+      } catch (e) {
+        setValidatorBadge(false, e.message || 'Syntax parser error');
+      }
+    }
+
+    function setValidatorBadge(isValid, errorMsg) {
+      const badge = document.getElementById('validator-badge');
+      if (isValid) {
+        badge.textContent = "✓ Syntax Valid";
+        badge.className = "text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/15 font-semibold";
+      } else {
+        badge.textContent = "⚠️ Malformed JSON Syntax";
+        badge.className = "text-[10px] px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/15 font-semibold";
+      }
+    }
+
+    // Dynamic insertion of Price Rates rows in the DOM
+    function populateRatesTable() {
+      const body = document.getElementById('rates-table-body');
+      body.innerHTML = '';
+      
+      const rates = currentConfig.wifi_rates || [];
+      rates.forEach((rate, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = "rate-row-elem hover:bg-slate-950/20 transition-colors";
+        tr.innerHTML = `
+          <td class="px-4 py-2 text-center pointer-events-auto">
+            <input type="text" value="${escapeHtml(rate.amount)}" class="rate-amount w-full bg-slate-950/80 border border-slate-800 rounded px-2.5 py-1 text-center font-mono font-bold text-emerald-400 text-xs focus:outline-none focus:border-indigo-500" oninput="syncFormToJSON()">
+          </td>
+          <td class="px-4 py-2 text-center">
+            <input type="text" value="${escapeHtml(rate.time)}" class="rate-time w-full bg-slate-950/80 border border-slate-800 rounded px-2.5 py-1 text-center font-bold text-slate-100 text-xs focus:outline-none focus:border-indigo-500" oninput="syncFormToJSON()">
+          </td>
+          <td class="px-4 py-2 text-center">
+            <input type="text" value="${escapeHtml(rate.validity)}" class="rate-validity w-full bg-slate-950/80 border border-slate-800 rounded px-2.5 py-1 text-center font-bold text-slate-100 text-xs focus:outline-none focus:border-indigo-500" oninput="syncFormToJSON()">
+          </td>
+          <td class="px-4 py-2 text-right pr-6">
+            <button onclick="deleteRateRow(this)" type="button" class="p-1 px-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg transition-colors cursor-pointer" title="Delete Row">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+          </td>
+        `;
+        body.appendChild(tr);
+      });
+    }
+
+    function addRateRow() {
+      if (!currentConfig.wifi_rates) currentConfig.wifi_rates = [];
+      currentConfig.wifi_rates.push({ "amount": "₱ 5", "time": "3H", "validity": "1D" });
+      populateRatesTable();
+      syncFormToJSON();
+    }
+
+    function deleteRateRow(btn) {
+      btn.closest('.rate-row-elem').remove();
+      syncFormToJSON();
+    }
+
+    // Dynamic insertion of Vendo Gateway Addresses in the DOM
+    function populateVendoTable() {
+      const body = document.getElementById('vendo-table-body');
+      body.innerHTML = '';
+
+      const gateways = currentConfig.VendoAddresses || [];
+      gateways.forEach((node, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = "vendo-row-elem hover:bg-slate-950/20 transition-colors";
+        tr.innerHTML = `
+          <td class="px-4 py-2">
+            <input type="text" value="${escapeHtml(node.ssid)}" class="vendo-ssid w-full bg-slate-950/80 border border-slate-800 rounded px-2.5 py-1 text-slate-200 text-xs focus:outline-none focus:border-indigo-500 font-semibold" oninput="syncFormToJSON()">
+          </td>
+          <td class="px-4 py-2">
+            <input type="text" value="${escapeHtml(node.vendoName)}" class="vendo-name w-full bg-slate-950/80 border border-slate-800 rounded px-2.5 py-1 text-slate-200 text-xs focus:outline-none focus:border-indigo-500 font-semibold" oninput="syncFormToJSON()">
+          </td>
+          <td class="px-4 py-2">
+            <input type="text" value="${escapeHtml(node.vendoIp)}" class="vendo-ip w-full bg-slate-950/80 border border-slate-800 rounded px-2.5 py-1 text-center font-mono text-indigo-400 text-xs focus:outline-none focus:border-indigo-500 font-bold" oninput="syncFormToJSON()">
+          </td>
+          <td class="px-4 py-2">
+            <input type="text" value="${escapeHtml(node.interfaceName)}" class="vendo-interfaceName w-full bg-slate-950/80 border border-slate-800 rounded px-2.5 py-1 text-center font-mono text-slate-100 text-xs focus:outline-none focus:border-indigo-500 font-medium" oninput="syncFormToJSON()">
+          </td>
+          <td class="px-4 py-2 text-right pr-6">
+            <button onclick="deleteVendoRow(this)" type="button" class="p-1 px-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg transition-colors cursor-pointer" title="Delete Row">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+          </td>
+        `;
+        body.appendChild(tr);
+      });
+    }
+
+    function addVendoRow() {
+      if (!currentConfig.VendoAddresses) currentConfig.VendoAddresses = [];
+      currentConfig.VendoAddresses.push({
+        "ssid": "NEW PISO WIFI SSID",
+        "vendoName": "NEW VENDO CABINET",
+        "vendoIp": "10.0.0.1",
+        "interfaceName": "bridge"
+      });
+      populateVendoTable();
+      syncFormToJSON();
+    }
+
+    function deleteVendoRow(btn) {
+      btn.closest('.vendo-row-elem').remove();
+      syncFormToJSON();
+    }
+
+    // Help escape string injections safely inside parameters
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    // Trigger feedback flags
+    let bannerTimeout;
+    function triggerAutosavedFlag() {
+      const banner = document.getElementById('save-banner');
+      const text = document.getElementById('save-banner-text');
+      text.textContent = 'Configuration synched! Code updated in live workspace.';
+      banner.classList.remove('hidden');
+      
+      clearTimeout(bannerTimeout);
+      bannerTimeout = setTimeout(() => {
+        banner.classList.add('hidden');
+      }, 3000);
+    }
+
+    function showNotification(title, msg) {
+      const banner = document.getElementById('save-banner');
+      const text = document.getElementById('save-banner-text');
+      text.textContent = title + ": " + msg;
+      banner.classList.remove('hidden');
+      
+      clearTimeout(bannerTimeout);
+      bannerTimeout = setTimeout(() => {
+        banner.classList.add('hidden');
+      }, 4000);
+    }
+
+    // Download settings.json Blob file output
+    function downloadJsonFile() {
+      try {
+        const payload = document.getElementById('raw-json-editor').value;
+        const validated = JSON.parse(payload); // Ensure syntax conforms before downloading
+        
+        const formattedPayload = formatSettingsJSON(validated);
+        const blob = new Blob([formattedPayload], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'settings.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showNotification('Success', 'Initiated download of custom settings.json');
+      } catch (e) {
+        alert('Could not download file. Please check syntax parser badge errors inside live JSON console.');
+      }
+    }
+
+    // Upload custom legacy/edited settings.json via file chooser
+    function uploadJsonFile(input) {
+      const file = input.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const rawParsed = JSON.parse(e.target.result);
+          currentConfig = migrateIncomingConfig(rawParsed);
+          updateJSONConsole();
+          populateFormFromConfig();
+          showNotification('Loaded', 'Custom settings.json file uploaded successfully!');
+        } catch (err) {
+          alert('Failed to parse uploaded settings.json file. malformed structures detected. ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // Absolute fallback defaults trigger
+    function resetToFallbackPresets() {
+      if (confirm('Are you absolutely sure you want to reset all variables to preset default settings?')) {
+        currentConfig = JSON.parse(JSON.stringify(defaultBackupPreset));
+        updateJSONConsole();
+        populateFormFromConfig();
+        showNotification('Defaults Restored', 'Reverted back to template baseline configuration preset.');
+      }
+    }
+
+    // Copy to clipboard helper
+    function copyToClipboard() {
+      const el = document.getElementById('raw-json-editor');
+      navigator.clipboard.writeText(el.value).then(() => {
+        const btn = document.getElementById('btn-copy');
+        const oldHtml = btn.innerHTML;
+        btn.innerHTML = `✓ Copied JSON`;
+        btn.classList.add('bg-emerald-600', 'text-white');
+        setTimeout(() => {
+          btn.innerHTML = oldHtml;
+          btn.classList.remove('bg-emerald-600', 'text-white');
+        }, 1500);
+      });
+    }
+
+    // Interactive Drag and Drop zone configurations
+    function setupDragAndDrop() {
+      const zone = document.getElementById('drop-zone');
+      
+      window.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        zone.classList.add('bg-indigo-500/5', 'border-indigo-500/20');
+      });
+
+      window.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        zone.classList.remove('bg-indigo-500/5', 'border-indigo-500/20');
+      });
+
+      window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('bg-indigo-500/5', 'border-indigo-500/20');
+        
+        const files = e.dataTransfer.files;
+        if (files && files.length > 0) {
+          const file = files[0];
+          if (file.name.endsWith('.json')) {
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+              try {
+                const rawParsed = JSON.parse(evt.target.result);
+                currentConfig = migrateIncomingConfig(rawParsed);
+                updateJSONConsole();
+                populateFormFromConfig();
+                showNotification('File Dropped', 'Synced custom ' + file.name + ' database configuration!');
+              } catch (err) {
+                alert('Invalid file format. Ensure structure represents correct settings.json layout. ' + err.message);
+              }
+            };
+            reader.readAsText(file);
+          } else {
+            alert('Please drop file representing valid .json dictionary metadata format.');
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
