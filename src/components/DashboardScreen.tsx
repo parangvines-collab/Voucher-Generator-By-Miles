@@ -14,7 +14,7 @@ import { VoucherCardList } from './VoucherCardList';
 import { 
   PiggyBank, ArrowDownCircle, BadgeAlert, KeyRound, Ticket, 
   Layers, Settings2, ShieldCheck, Download, Code, FileText, ClipboardCopy, Copy, Check, RefreshCw,
-  Smartphone, ExternalLink, History, Trash2, Calendar
+  Smartphone, ExternalLink, History, Trash2, Calendar, X
 } from 'lucide-react';
 
 interface DashboardScreenProps {
@@ -104,13 +104,15 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
     pastedScript: string;
     error: string;
     copied: boolean;
+    hasRunScript?: 'yes' | 'no' | '';
   }>({
     isOpen: false,
     step: 'portalkey',
     portalKey: '',
     pastedScript: '',
     error: '',
-    copied: false
+    copied: false,
+    hasRunScript: ''
   });
 
   // Dialog (Alert, Confirm, Prompt) custom state to bypass blocked native popups in sandbox iframes
@@ -651,26 +653,11 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
 
   const handleVerifyPastedScriptInModal = () => {
     setDownloadModal(prev => ({ ...prev, error: '' }));
-    const pasted = downloadModal.pastedScript.trim();
-    if (!pasted) {
-      setDownloadModal(prev => ({ ...prev, error: 'Please paste the MikroTik terminal script to unlock download.' }));
-      return;
-    }
-
-    // List of key unique lines or phrases that must be in the pasted script as validation
-    const requiredPassages = [
-      "/ip hotspot set [find] addresses-per-mac=1",
-      "address-pool=none idle-timeout=none",
-      "reminder-allow-milesportal-site",
-      "milesportal.online"
-    ];
-
-    const isValid = requiredPassages.every(term => pasted.toLowerCase().includes(term.toLowerCase()));
-
-    if (!isValid) {
+    
+    if (downloadModal.hasRunScript !== 'yes') {
       setDownloadModal(prev => ({ 
         ...prev, 
-        error: 'Validation failed: The script pasted does not match the required MikroTik terminal script. Please make sure you copy the entire script block and paste it below.' 
+        error: 'Please execute the setup script in your MikroTik router first and select "Yes, I have run the script" to unlock the download.' 
       }));
       return;
     }
@@ -683,7 +670,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
-      ActivityLogger.logActivity('juanfi_download', `Downloaded Enhanced JuanFi Portal after script validation`);
+      ActivityLogger.logActivity('juanfi_download', `Downloaded Enhanced JuanFi Portal after script-run confirmation`);
     } catch (err) {
       console.warn("Automated click download failed, offering link instead", err);
     }
@@ -1520,6 +1507,16 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
                   <Download className="w-3.5 h-3.5 animate-pulse" />
                   Download Enhanced JuanFi Portal
                 </button>
+                <a
+                  href="/editor.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[11px] text-indigo-400 hover:text-indigo-300 font-bold transition-all bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20 shadow-sm cursor-pointer"
+                  title="Configure portal settings.json file"
+                >
+                  <Settings2 className="w-3.5 h-3.5 animate-pulse" />
+                  Configure Settings.json?
+                </a>
               </div>
             </div>
 
@@ -2065,15 +2062,15 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
                 </div>
               )}
 
-              {/* Step 2: MikroTik Terminal Script copy and paste */}
+              {/* Step 2: MikroTik Terminal Script confirmation question */}
               {downloadModal.step === 'script' && (
-                <div className="space-y-3">
-                  <p className="text-slate-300 leading-relaxed">
-                    You must run the required MikroTik setup script in your router terminal first before downloading the files. Copy the terminal script and paste it in the validation field below:
+                <div className="space-y-4">
+                  <p className="text-slate-300 leading-relaxed text-[11px]">
+                    To unlock files download, you must run our clean configuration setup script in your MikroTik router console terminal. Please make sure to copy and execute it:
                   </p>
 
-                  <div className="bg-slate-955/80 rounded-xl border border-slate-800 p-3 space-y-2">
-                    <div className="flex justify-between items-center pb-2 border-b border-slate-900">
+                  <div className="bg-slate-950/80 rounded-xl border border-slate-800 p-3 space-y-2">
+                    <div className="flex justify-between items-center pb-2 border-b border-slate-850">
                       <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">MikroTik Router terminal Script</span>
                       <button
                         type="button"
@@ -2099,21 +2096,49 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
                         )}
                       </button>
                     </div>
-                    <pre className="max-h-32 overflow-y-auto w-full bg-slate-950 font-mono text-[10px] leading-relaxed text-slate-450 p-2.5 rounded-lg border border-slate-900/60 scrollbar-thin whitespace-pre-wrap select-all">
+                    <pre className="max-h-28 overflow-y-auto w-full bg-slate-950 font-mono text-[9.5px] leading-relaxed text-slate-450 p-2 rounded-lg border border-slate-900/40 scrollbar-thin whitespace-pre-wrap select-all">
                       {mikrotikScript}
                     </pre>
                   </div>
 
-                  <div className="space-y-1.5 pt-1">
-                    <label className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                      Paste the script here to verify & unlock download:
+                  <div className="space-y-2.5 pt-2 border-t border-slate-800/50">
+                    <label className="block text-slate-300 font-bold text-center text-xs">
+                      Did you execute the setup script above inside your MikroTik Router Terminal?
                     </label>
-                    <textarea
-                      placeholder="Right click & paste the exact copied terminal script here..."
-                      value={downloadModal.pastedScript}
-                      onChange={(e) => setDownloadModal(prev => ({ ...prev, pastedScript: e.target.value }))}
-                      className="w-full h-24 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-[10.5px] font-mono text-slate-300 outline-none focus:border-indigo-500 scrollbar-thin placeholder:font-sans"
-                    />
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDownloadModal(prev => ({ ...prev, hasRunScript: 'yes', error: '' }));
+                        }}
+                        className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all border outline-none cursor-pointer flex items-center justify-center gap-1.5 ${
+                          downloadModal.hasRunScript === 'yes'
+                            ? 'bg-emerald-500/10 border-emerald-500/45 text-emerald-400 shadow-sm'
+                            : 'bg-slate-955 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                        }`}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        Yes, I run the script
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDownloadModal(prev => ({ 
+                            ...prev, 
+                            hasRunScript: 'no', 
+                            error: 'Please execute the setup script under your MikroTik Router first, then select "Yes" to unlock your files.' 
+                          }));
+                        }}
+                        className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all border outline-none cursor-pointer flex items-center justify-center gap-1.5 ${
+                          downloadModal.hasRunScript === 'no'
+                            ? 'bg-rose-500/10 border-rose-500/40 text-rose-450 shadow-sm'
+                            : 'bg-slate-955 border-slate-800 text-slate-400 hover:text-slate-250 hover:border-slate-700'
+                        }`}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        No, not yet
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -2130,7 +2155,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
                       Your download should have started. If it didn't trigger automatically, utilize the direct button below to download the Enhanced JuanFi Portal ZIP archive.
                     </p>
                   </div>
-                  <div className="pt-2 flex justify-center">
+                  <div className="pt-2 flex flex-wrap gap-2.5 justify-center">
                     <button
                       onClick={() => {
                         const downloadLink = document.createElement('a');
@@ -2145,6 +2170,15 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
                       <Download className="w-4 h-4" />
                       Direct Link Download ZIP
                     </button>
+                    <a
+                      href="/editor.html"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-200 font-bold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
+                    >
+                      <Settings2 className="w-4 h-4" />
+                      Configure Settings.json?
+                    </a>
                   </div>
                 </div>
               )}
@@ -2184,7 +2218,7 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
                     onClick={handleVerifyPastedScriptInModal}
                     className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-colors shadow-md shadow-indigo-600/10 cursor-pointer"
                   >
-                    Verify Script & Download
+                    Confirm & Download
                   </button>
                 </>
               ) : (
