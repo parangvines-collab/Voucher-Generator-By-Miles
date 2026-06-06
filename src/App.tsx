@@ -3,11 +3,12 @@ import { AuthScreen } from './components/AuthScreen';
 import { DashboardScreen } from './components/DashboardScreen';
 import { AdminManagerScreen } from './components/AdminManagerScreen';
 import { ActivitiesScreen } from './components/ActivitiesScreen';
+import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { ActivityLogger } from './utils/activityDB';
 import { supabase } from './supabaseClient';
 import { 
   Ticket, History, Users2, LogOut, ShieldAlert,
-  SlidersHorizontal, HeartHandshake, Laptop, Network
+  SlidersHorizontal, HeartHandshake, Laptop, Network, KeyRound
 } from 'lucide-react';
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
 
   // Load balance and session variables to ensure correct mounting
   const [userBalance, setUserBalance] = useState<number | null>(null);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   useEffect(() => {
     // Check if user session already exists
@@ -172,7 +174,7 @@ export default function App() {
               {/* Right Profile / Session Controls */}
               <div className="flex items-center gap-4">
                 <div className="text-right flex flex-col justify-center">
-                  <span className="block text-xs font-bold text-slate-250">
+                  <span className="block text-xs font-bold text-slate-250 font-sans">
                     {currentUser}
                   </span>
                   {currentUser !== 'admin' && userBalance !== null && (
@@ -186,6 +188,16 @@ export default function App() {
                     </span>
                   )}
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsChangePasswordOpen(true)}
+                  className="p-2 sm:px-3 sm:py-1.5 bg-slate-800 hover:bg-slate-750 border border-slate-750 text-slate-300 hover:text-white rounded-xl transition-all focus:outline-none flex items-center gap-1.5 text-xs font-medium cursor-pointer"
+                  title="Change your account password"
+                >
+                  <KeyRound className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <span className="hidden sm:inline">Change Password</span>
+                </button>
 
                 <button
                   onClick={handleLogout}
@@ -278,6 +290,11 @@ export default function App() {
         </div>
       </footer>
 
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+        currentUser={currentUser}
+      />
     </div>
   );
 }

@@ -202,6 +202,8 @@ export function AdminManagerScreen() {
       let sbMikrotikScript = DEFAULT_MIKROTIK_SCRIPT;
 
       let localLastSeen: Record<string, string> = {};
+      const opPasswords: Record<string, string> = {};
+
       if (!errSettings && settings && settings.length > 0) {
         settings.forEach((s: any) => {
           if (s.key === 'admin_password') sbAdminPass = s.value;
@@ -212,18 +214,22 @@ export function AdminManagerScreen() {
           if (s.key === 'telegram_bot_token') sbBotToken = s.value;
           if (s.key === 'telegram_chat_id') sbChatId = s.value;
           if (s.key === 'juanfi_link') sbJuanfiLink = s.value || '/Enhanced%20JuanFi%20Portal%20ver.5.0%20(16.8kb).zip';
-          if (s.key === 'juanfi_title') sbJuanfiTitle = s.value || '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)';
+          if (s.key === 'juanfi_title') sbJuanfiTitle = s.value || '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚λ 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)';
           if (s.key === 'juanfi_description') sbJuanfiDesc = s.value || '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧λ𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
           if (s.key === 'juanfi_password') sbJuanfiPassword = s.value || 'juanfi123';
           if (s.key === 'mikrotik_terminal_script') sbMikrotikScript = s.value || DEFAULT_MIKROTIK_SCRIPT;
         });
 
-        // Load last_seen timestamps from global_settings as fallback
+        // Load last_seen timestamps and operator passwords from global_settings as fallback
         const lastSeenData: Record<string, string> = {};
         settings.forEach((s: any) => {
           if (s.key && s.key.startsWith('last_seen_')) {
             const uname = s.key.replace('last_seen_', '');
             lastSeenData[uname] = s.value;
+          }
+          if (s.key && s.key.startsWith('operator_password_')) {
+            const uname = s.key.replace('operator_password_', '');
+            opPasswords[uname.toLowerCase()] = s.value;
           }
         });
         localLastSeen = lastSeenData;
@@ -256,7 +262,7 @@ export function AdminManagerScreen() {
             if (!seenUsernames.has(lowerUser)) {
               seenUsernames.add(lowerUser);
               mappedUsers[p.username] = {
-                password: p.password_plain || 'Secure Supabase Auth',
+                password: opPasswords[lowerUser] || 'Secure Supabase Auth',
                 expiration: p.expiration || '',
                 balance: parseFloat(p.balance) || 0,
                 lastSeen: p.last_seen || undefined
@@ -377,6 +383,38 @@ export function AdminManagerScreen() {
     await showAlert('Success', 'User cash balance updated successfully!');
   };
 
+  const handleResetUserPassword = async (user: string, oldPass: string) => {
+    const val = await showPrompt(
+      'Reset Operator Password',
+      `Enter new password for operator "${user}":`,
+      oldPass === 'Secure Supabase Auth' ? '' : oldPass,
+      'Enter new password'
+    );
+    if (val === null) return;
+
+    const trimmedVal = val.trim();
+    if (trimmedVal.length < 6) {
+      await showAlert('Invalid Input', 'Password must be at least 6 characters.');
+      return;
+    }
+
+    try {
+      const resetKey = `operator_password_${user.toLowerCase()}`;
+      const { error: gsErr } = await supabase
+        .from('global_settings')
+        .upsert([{ key: resetKey, value: trimmedVal }]);
+
+      if (gsErr) throw gsErr;
+
+      ActivityLogger.logActivity('password_reset', `Admin reset database entry password for operator: ${user}`, { username: user });
+      loadAllData();
+      await showAlert('Success', `Password for operator "${user}" has been reset successfully in database entry.`);
+    } catch (e: any) {
+      console.warn('Error resetting operator password:', e);
+      await showAlert('Error', e.message || 'Could not reset password in database entry.');
+    }
+  };
+
   const handleDeleteUser = async (user: string) => {
     const confirmed = await showConfirm(
       'Delete Operator Account',
@@ -464,6 +502,13 @@ export function AdminManagerScreen() {
           balance: 0,
           expiration: null
         }]);
+
+        try {
+          const resetKey = `operator_password_${trimUser.toLowerCase()}`;
+          await supabase.from('global_settings').upsert([{ key: resetKey, value: newOperatorPass }]);
+        } catch (dbErr) {
+          console.warn('Error saving password inside global_settings on admin register:', dbErr);
+        }
       }
     } catch (err: any) {
       console.warn('Creating profile on database bypass or issue:', err);
@@ -1379,6 +1424,15 @@ export function AdminManagerScreen() {
                           title="Show/Hide Password"
                         >
                           {visiblePasswords[uName] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+
+                        <button 
+                          onClick={() => handleResetUserPassword(uName, uData.password || '')}
+                          className="px-2 py-1.5 bg-slate-850 hover:bg-slate-805 text-slate-305 hover:text-amber-400 rounded-lg text-xs font-medium transition-colors border border-slate-800/50 flex items-center gap-1"
+                          title="Quick reset user password"
+                        >
+                          <KeyRound className="w-3.5 h-3.5 text-amber-500" />
+                          Pin
                         </button>
 
                         <button 
