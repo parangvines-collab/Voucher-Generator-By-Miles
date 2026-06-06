@@ -97,6 +97,68 @@ export function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
         onLoginSuccess(sessionUsername);
       }, 800);
     } catch (err: any) {
+      // 1. Fallback check against global_settings key: 'operator_password_' + username (preferred fallback)
+      try {
+        const resetKey = `operator_password_${trimUser.toLowerCase()}`;
+        const { data: settingData, error: settingErr } = await supabase
+          .from('global_settings')
+          .select('*')
+          .ilike('key', resetKey)
+          .maybeSingle();
+
+        if (!settingErr && settingData && settingData.value === password) {
+          let sessionUsername = trimUser;
+          // Try to lookup profile to get proper casing if possible
+          try {
+            const { data: pData } = await supabase
+              .from('profiles')
+              .select('username')
+              .ilike('username', trimUser)
+              .maybeSingle();
+            if (pData && pData.username) {
+              sessionUsername = pData.username;
+            }
+          } catch (e) {}
+
+          sessionStorage.setItem('authenticated', 'true');
+          sessionStorage.setItem('username', sessionUsername);
+          ActivityLogger.logActivity('user_login', 'User logged in via Admin-Reset Password fallback (global_settings)', { username: sessionUsername });
+          setSuccessMsg('Login successful! Redirecting...');
+          window.history.replaceState({}, '', '/');
+          setTimeout(() => {
+            onLoginSuccess(sessionUsername);
+          }, 800);
+          return;
+        }
+      } catch (gsEx) {
+        console.warn('Global settings fallback login check encountered error:', gsEx);
+      }
+
+      // 2. Legacy fallback check against profiles table password_plain column (safely try-caught for old schema)
+      try {
+        const { data: profData, error: dbErr } = await supabase
+          .from('profiles')
+          .select('*')
+          .ilike('username', trimUser)
+          .eq('password_plain', password)
+          .maybeSingle();
+
+        if (!dbErr && profData) {
+          const sessionUsername = profData.username || trimUser;
+          sessionStorage.setItem('authenticated', 'true');
+          sessionStorage.setItem('username', sessionUsername);
+          ActivityLogger.logActivity('user_login', 'User logged in via Admin-Reset Password fallback check (legacy profiles)', { username: sessionUsername });
+          setSuccessMsg('Login successful! Redirecting...');
+          window.history.replaceState({}, '', '/');
+          setTimeout(() => {
+            onLoginSuccess(sessionUsername);
+          }, 800);
+          return;
+        }
+      } catch (dbEx) {
+        console.warn('Legacy profiles fallback check skipped or column missing:', dbEx);
+      }
+
       ActivityLogger.logActivity('login_failed', 'Failed login attempt via Supabase', { username: trimUser, error: err.message });
       setErrorMsg(err.message || 'Invalid username/email or password.');
     }
@@ -169,6 +231,14 @@ export function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
             balance: 0,
             expiration: null
           }]);
+
+          // Save operator backup password inside global_settings
+          try {
+            const resetKey = `operator_password_${trimUser.toLowerCase()}`;
+            await supabase.from('global_settings').upsert([{ key: resetKey, value: password }]);
+          } catch (gsErr) {
+            console.warn('Error saving password inside global_settings on register:', gsErr);
+          }
         } catch (profileErr) {
           console.warn('Error creating profile entry on self-registration:', profileErr);
         }

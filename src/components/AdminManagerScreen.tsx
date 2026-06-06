@@ -202,6 +202,7 @@ export function AdminManagerScreen() {
       let sbMikrotikScript = DEFAULT_MIKROTIK_SCRIPT;
 
       let localLastSeen: Record<string, string> = {};
+      const opPasswords: Record<string, string> = {};
       if (!errSettings && settings && settings.length > 0) {
         settings.forEach((s: any) => {
           if (s.key === 'admin_password') sbAdminPass = s.value;
@@ -212,18 +213,22 @@ export function AdminManagerScreen() {
           if (s.key === 'telegram_bot_token') sbBotToken = s.value;
           if (s.key === 'telegram_chat_id') sbChatId = s.value;
           if (s.key === 'juanfi_link') sbJuanfiLink = s.value || '/Enhanced%20JuanFi%20Portal%20ver.5.0%20(16.8kb).zip';
-          if (s.key === 'juanfi_title') sbJuanfiTitle = s.value || '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚𝐥 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)';
+          if (s.key === 'juanfi_title') sbJuanfiTitle = s.value || '𝐄𝐧𝐡𝐚𝐧𝐜𝐞𝐝 𝐉𝐮𝐚𝐧𝐅𝐢 𝐏𝐨𝐫𝐭𝐚λ 𝐯𝐞𝐫.𝟓.𝟎 (𝟏𝟔.𝟖𝐤𝐛)';
           if (s.key === 'juanfi_description') sbJuanfiDesc = s.value || '“𝐋𝐢𝐠𝐡𝐭𝐰𝐞𝐢𝐠𝐡𝐭, 𝐬𝐦𝐨𝐨𝐭𝐡, 𝐚𝐧𝐝 𝐟𝐚𝐬𝐭-𝐥𝐨𝐚𝐝𝐢𝐧𝐠-𝐨𝐩𝐭𝐢𝐦𝐢𝐳𝐞𝐝 𝐚𝐭 𝐨𝐧λ𝐲 𝟏𝟔.𝟖𝐤𝐛 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐛𝐞𝐬𝐭 𝐮𝐬𝐞𝐫 𝐞𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞”';
           if (s.key === 'juanfi_password') sbJuanfiPassword = s.value || 'juanfi123';
           if (s.key === 'mikrotik_terminal_script') sbMikrotikScript = s.value || DEFAULT_MIKROTIK_SCRIPT;
         });
 
-        // Load last_seen timestamps from global_settings as fallback
+        // Load last_seen timestamps and operator passwords from global_settings as fallback
         const lastSeenData: Record<string, string> = {};
         settings.forEach((s: any) => {
           if (s.key && s.key.startsWith('last_seen_')) {
             const uname = s.key.replace('last_seen_', '');
             lastSeenData[uname] = s.value;
+          }
+          if (s.key && s.key.startsWith('operator_password_')) {
+            const uname = s.key.replace('operator_password_', '');
+            opPasswords[uname.toLowerCase()] = s.value;
           }
         });
         localLastSeen = lastSeenData;
@@ -256,7 +261,7 @@ export function AdminManagerScreen() {
             if (!seenUsernames.has(lowerUser)) {
               seenUsernames.add(lowerUser);
               mappedUsers[p.username] = {
-                password: p.password_plain || 'Secure Supabase Auth',
+                password: opPasswords[lowerUser] || p.password_plain || 'Secure Supabase Auth',
                 expiration: p.expiration || '',
                 balance: parseFloat(p.balance) || 0,
                 lastSeen: p.last_seen || undefined
@@ -377,6 +382,70 @@ export function AdminManagerScreen() {
     await showAlert('Success', 'User cash balance updated successfully!');
   };
 
+  const handleResetUserPassword = async (user: string, oldPass: string) => {
+    const val = await showPrompt(
+      'Reset Operator Password',
+      `Enter new password for operator "${user}":`,
+      oldPass === 'Secure Supabase Auth' ? '' : oldPass,
+      'Enter new password'
+    );
+    if (val === null) return;
+
+    const trimmedVal = val.trim();
+    if (trimmedVal.length < 6) {
+      await showAlert('Invalid Input', 'Password must be at least 6 characters.');
+      return;
+    }
+
+    try {
+      // 1. Try to perform standard password reset in Supabase Auth via PostgreSQL RPC
+      const { data: rpcRes, error: rpcErr } = await supabase.rpc('admin_reset_operator_password', {
+        target_username: user,
+        new_password: trimmedVal
+      });
+
+      if (!rpcErr && rpcRes === true) {
+        // Successfully updated the actual Supabase Auth password!
+        ActivityLogger.logActivity('password_reset', `Admin updated authentication credentials for operator user: ${user}`, { username: user });
+        
+        // Also sync local backup setting to keep track
+        const resetKey = `operator_password_${user.toLowerCase()}`;
+        try {
+          await supabase.from('global_settings').upsert([{ key: resetKey, value: trimmedVal }]);
+        } catch (e) {}
+
+        loadAllData();
+        await showAlert(
+          'Success (Standard Auth Reset)', 
+          `The operator password for "${user}" was successfully reset directly inside Supabase Authentication!\n\nNo fallback override is required. This updated password is now active and immediately applied across ALL websites, including old published websites!`
+        );
+        return;
+      }
+
+      // 2. Fallback if RPC fails or is not setup yet - update in global_settings to avoid profiles.password_plain crash
+      console.warn('Standard RPC password reset not available or failed:', rpcErr);
+
+      const resetKey = `operator_password_${user.toLowerCase()}`;
+      const { error: gsErr } = await supabase
+        .from('global_settings')
+        .upsert([{ key: resetKey, value: trimmedVal }]);
+
+      if (gsErr) throw gsErr;
+
+      ActivityLogger.logActivity('password_reset', `Admin set database entry password fallback for operator: ${user}`, { username: user });
+      loadAllData();
+
+      // Show comprehensive modal guiding user how to copy the RPC script into Supabase so it applies to the old published website too!
+      await showAlert(
+        'Password Saved (Fallback)', 
+        `Password reset has been registered in the database fallback.\n\n⚠️ IMPORTANT FOR THE OLD WEBSITE:\nTo make password resets work on your older published website and native Supabase Auth, please paste the SQL Reset Script in your Supabase SQL Editor:\n\n1. Open your Supabase Dashboard.\n2. Go to SQL Editor -> New Query.\n3. Paste the following snippet and click "Run":\n\nCREATE OR REPLACE FUNCTION admin_reset_operator_password(target_username TEXT, new_password TEXT)\nRETURNS BOOLEAN AS $$\nDECLARE target_user_id UUID;\nBEGIN\n  SELECT id INTO target_user_id FROM public.profiles WHERE LOWER(username) = LOWER(target_username) LIMIT 1;\n  IF target_user_id IS NULL THEN\n    SELECT id INTO target_user_id FROM auth.users WHERE email = LOWER(target_username) || '@example.com' OR email = LOWER(target_username) LIMIT 1;\n  END IF;\n  IF target_user_id IS NOT NULL THEN\n    UPDATE auth.users SET encrypted_password = extensions.crypt(new_password, extensions.gen_salt(\'bf\', 10)), updated_at = NOW() WHERE id = target_user_id;\n    RETURN TRUE;\n  ELSE\n    RETURN FALSE;\n  END IF;\nEND;\n$$ LANGUAGE plpgsql SECURITY DEFINER;\n\nOnce run, passwords will update dynamically on all your published sites!`
+      );
+    } catch (e: any) {
+      console.warn('Error resetting operator password:', e);
+      await showAlert('Error', e.message || 'Could not reset password in database.');
+    }
+  };
+
   const handleDeleteUser = async (user: string) => {
     const confirmed = await showConfirm(
       'Delete Operator Account',
@@ -464,6 +533,14 @@ export function AdminManagerScreen() {
           balance: 0,
           expiration: null
         }]);
+
+        // Also update global_settings for fallback password storage
+        try {
+          const resetKey = `operator_password_${trimUser.toLowerCase()}`;
+          await supabase.from('global_settings').upsert([{ key: resetKey, value: newOperatorPass }]);
+        } catch (dbErr) {
+          console.warn('Error saving password inside global_settings:', dbErr);
+        }
       }
     } catch (err: any) {
       console.warn('Creating profile on database bypass or issue:', err);
@@ -1379,6 +1456,15 @@ export function AdminManagerScreen() {
                           title="Show/Hide Password"
                         >
                           {visiblePasswords[uName] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+
+                        <button 
+                          onClick={() => handleResetUserPassword(uName, uData.password || '')}
+                          className="px-2 py-1.5 bg-slate-850 hover:bg-slate-800 text-slate-300 hover:text-amber-400 rounded-lg text-xs font-medium transition-colors border border-slate-800/50 flex items-center gap-1"
+                          title="Reset Operator Password"
+                        >
+                          <KeyRound className="w-3.5 h-3.5 text-amber-500" />
+                          Pin
                         </button>
 
                         <button 
