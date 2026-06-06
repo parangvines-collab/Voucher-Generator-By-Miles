@@ -97,41 +97,6 @@ export function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
         onLoginSuccess(sessionUsername);
       }, 800);
     } catch (err: any) {
-      // Fallback check against global_settings key: 'operator_password_' + username (e.g. if Admin reset the password)
-      try {
-        const resetKey = `operator_password_${trimUser.toLowerCase()}`;
-        const { data: settingData, error: dbErr } = await supabase
-          .from('global_settings')
-          .select('*')
-          .ilike('key', resetKey)
-          .single();
-
-        if (!dbErr && settingData && settingData.value === password) {
-          // Found a database match in global_settings! Let user login with updated credentials.
-          let sessionUsername = trimUser;
-          const { data: profData } = await supabase
-            .from('profiles')
-            .select('username')
-            .ilike('username', trimUser)
-            .maybeSingle();
-          if (profData && profData.username) {
-            sessionUsername = profData.username;
-          }
-
-          sessionStorage.setItem('authenticated', 'true');
-          sessionStorage.setItem('username', sessionUsername);
-          ActivityLogger.logActivity('user_login', 'User logged in via Admin-Reset Password', { username: sessionUsername });
-          setSuccessMsg('Login successful via database override! Redirecting...');
-          window.history.replaceState({}, '', '/');
-          setTimeout(() => {
-            onLoginSuccess(sessionUsername);
-          }, 800);
-          return;
-        }
-      } catch (dbEx) {
-        console.warn('Database fallback credential check encountered error:', dbEx);
-      }
-
       ActivityLogger.logActivity('login_failed', 'Failed login attempt via Supabase', { username: trimUser, error: err.message });
       setErrorMsg(err.message || 'Invalid username/email or password.');
     }
@@ -204,13 +169,6 @@ export function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
             balance: 0,
             expiration: null
           }]);
-
-          try {
-            const resetKey = `operator_password_${trimUser.toLowerCase()}`;
-            await supabase.from('global_settings').upsert([{ key: resetKey, value: password }]);
-          } catch (gsErr) {
-            console.warn('Error saving password inside global_settings on signup:', gsErr);
-          }
         } catch (profileErr) {
           console.warn('Error creating profile entry on self-registration:', profileErr);
         }

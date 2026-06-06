@@ -107,14 +107,6 @@ export function ChangePasswordModal({ isOpen, onClose, currentUser }: ChangePass
           throw updateErr;
         }
 
-        // Also update global_settings operator_password_<username_lowercase>
-        try {
-          const resetKey = `operator_password_${currentUser.toLowerCase()}`;
-          await supabase.from('global_settings').upsert([{ key: resetKey, value: trimNew }]);
-        } catch (dbErr) {
-          console.warn('Error updating global_settings operator_password:', dbErr);
-        }
-
         ActivityLogger.logActivity('password_changed', `Operator user "${currentUser}" changed their password`);
         setSuccessMsg('Your security credentials have been updated successfully.');
       }
