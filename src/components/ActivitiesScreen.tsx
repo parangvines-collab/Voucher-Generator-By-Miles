@@ -11,7 +11,9 @@ export function ActivitiesScreen() {
 
   const loadActivities = async () => {
     const logs = await ActivityLogger.getActivitiesFromSupabase();
-    setActivities(logs);
+    // Exclude chat messages from administrative logs
+    const filtered = logs.filter(log => log.type !== 'chat_message');
+    setActivities(filtered);
   };
 
   useEffect(() => {

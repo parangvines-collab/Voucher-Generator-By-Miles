@@ -4,6 +4,7 @@ import { DashboardScreen } from './components/DashboardScreen';
 import { AdminManagerScreen } from './components/AdminManagerScreen';
 import { ActivitiesScreen } from './components/ActivitiesScreen';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
+import { ChatWidget } from './components/ChatWidget';
 import { ActivityLogger } from './utils/activityDB';
 import { supabase } from './supabaseClient';
 import { 
@@ -295,6 +296,8 @@ export default function App() {
         onClose={() => setIsChangePasswordOpen(false)}
         currentUser={currentUser}
       />
+
+      <ChatWidget currentUser={currentUser} />
     </div>
   );
 }
