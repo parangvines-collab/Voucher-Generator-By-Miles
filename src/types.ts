@@ -3,6 +3,7 @@ export interface UserData {
   expiration?: string; // YYYY-MM-DD
   balance?: number;
   lastSeen?: string;
+  createdAt?: string;
 }
 
 export type UserDatabase = Record<string, UserData>;

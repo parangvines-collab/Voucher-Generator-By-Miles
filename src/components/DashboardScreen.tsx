@@ -1481,7 +1481,15 @@ export function DashboardScreen({ currentUser, onUpdateBalance }: DashboardScree
           <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg p-5 flex flex-col justify-between">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs uppercase tracking-widest text-[#aaa] font-bold">PortalKey</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs uppercase tracking-widest text-[#aaa] font-bold">PortalKey</span>
+                  {userPortalKeys.length > 0 && (
+                    <span className="text-[10px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded font-mono font-bold flex items-center gap-1" title="Number of activation keys purchased under this account">
+                      <KeyRound className="w-2.5 h-2.5 text-amber-500" />
+                      Purchased: {userPortalKeys.length}
+                    </span>
+                  )}
+                </div>
                 <div className="flex flex-col items-end gap-1">
                   <span className="text-xs bg-slate-800 px-2 py-0.5 rounded text-indigo-400 font-mono font-bold">
                     PHP {userPortalKeys.length === 0 ? portalKeyFirstPrice : portalKeySubsequentPrice}

@@ -6,7 +6,8 @@ import { supabase } from '../supabaseClient';
 import { 
   Users, DollarSign, Send, Lock, FileSpreadsheet, 
   Check, X, Eye, EyeOff, Calendar, PlusCircle, Trash, KeyRound, Link,
-  Wifi, WifiOff, Smartphone, ExternalLink, Terminal, ChevronDown, ChevronUp
+  Wifi, WifiOff, Smartphone, ExternalLink, Terminal, ChevronDown, ChevronUp,
+  Search
 } from 'lucide-react';
 
 const DEFAULT_MIKROTIK_SCRIPT = `# Enhanced JuanFi Portal Script By: Miles
@@ -26,6 +27,9 @@ export function AdminManagerScreen() {
   const [adminPassword, setAdminPassword] = useState('password');
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
   const [isAdminPassVisible, setIsAdminPassVisible] = useState(false);
+  const [userFilterTab, setUserFilterTab] = useState<'all' | 'new' | 'online' | 'offline' | 'search'>('all');
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [expandedUserKeys, setExpandedUserKeys] = useState<Record<string, boolean>>({});
 
   // Card minimization state
   const [minimized, setMinimized] = useState<Record<string, boolean>>({
@@ -264,7 +268,8 @@ export function AdminManagerScreen() {
                 password: opPasswords[lowerUser] || p.password_plain || 'Secure Supabase Auth',
                 expiration: p.expiration || '',
                 balance: parseFloat(p.balance) || 0,
-                lastSeen: p.last_seen || undefined
+                lastSeen: p.last_seen || undefined,
+                createdAt: p.created_at || undefined
               };
             }
           }
@@ -1166,6 +1171,65 @@ export function AdminManagerScreen() {
   const pendingCashIn = cashInRequests.filter(r => r.status === 'pending');
   const processedCashIn = cashInRequests.filter(r => r.status !== 'pending');
 
+  // Categorized user lists for Admin Manager Tab View
+  const allUsersList = Object.entries(users);
+
+  const newUsersList = Object.entries(users).filter(([uName, data]) => {
+    const uData = data as any;
+    const createdAt = uData.createdAt;
+    if (!createdAt) return false;
+    
+    const createdDate = new Date(createdAt);
+    const todayDate = new Date();
+    
+    // Check if registered calendar day matches today (UTC)
+    const isTodayUTC = createdDate.getUTCFullYear() === todayDate.getUTCFullYear() &&
+                       createdDate.getUTCMonth() === todayDate.getUTCMonth() &&
+                       createdDate.getUTCDate() === todayDate.getUTCDate();
+                       
+    // Check if registered calendar day matches today (Local Timezone)
+    const isTodayLocal = createdDate.getFullYear() === todayDate.getFullYear() &&
+                         createdDate.getMonth() === todayDate.getMonth() &&
+                         createdDate.getDate() === todayDate.getDate();
+                         
+    return isTodayUTC || isTodayLocal;
+  });
+
+  const onlineUsersList = Object.entries(users).filter(([uName, data]) => {
+    const uData = data as any;
+    const lastSeenStr = uData.lastSeen || lastSeenMap[uName];
+    const lastSeen = lastSeenStr ? new Date(lastSeenStr) : null;
+    return lastSeen && (Date.now() - lastSeen.getTime() < 65 * 1005); // using 65s for precision
+  });
+
+  const offlineUsersList = Object.entries(users).filter(([uName, data]) => {
+    const uData = data as any;
+    const lastSeenStr = uData.lastSeen || lastSeenMap[uName];
+    const lastSeen = lastSeenStr ? new Date(lastSeenStr) : null;
+    const isOnline = lastSeen && (Date.now() - lastSeen.getTime() < 65 * 1005);
+    return !isOnline;
+  });
+
+  // Get current active filter
+  const getFilteredUsers = () => {
+    let list = allUsersList;
+    if (userFilterTab === 'new') {
+      list = newUsersList;
+    } else if (userFilterTab === 'online') {
+      list = onlineUsersList;
+    } else if (userFilterTab === 'offline') {
+      list = offlineUsersList;
+    }
+    
+    if (userSearchQuery.trim() !== '') {
+      const q = userSearchQuery.toLowerCase().trim();
+      return list.filter(([uName]) => uName.toLowerCase().includes(q));
+    }
+    return list;
+  };
+
+  const activeCategoryUsers = getFilteredUsers();
+
   return (
     <div className="space-y-8 animate-fade-in">
       
@@ -1329,6 +1393,113 @@ export function AdminManagerScreen() {
 
             {!minimized.users && (
               <>
+                {/* Visual Category Separation Tabs */}
+                <div className="bg-slate-950/30 border-b border-slate-800/85 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5">
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setUserFilterTab('all')}
+                      className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        userFilterTab === 'all'
+                          ? 'bg-slate-800 text-slate-100 border border-slate-700 shadow-inner'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850/50 border border-transparent'
+                      }`}
+                    >
+                      <Users className="w-3.5 h-3.5 text-slate-400" />
+                      All Accounts
+                      <span className="text-[10px] px-1.5 py-0.2 bg-slate-900 border border-slate-805 rounded-full font-mono text-slate-300">
+                        {allUsersList.length}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setUserFilterTab('new')}
+                      className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        userFilterTab === 'new'
+                          ? 'bg-indigo-650/15 text-indigo-400 border border-indigo-500/25'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850/50 border border-transparent'
+                      }`}
+                    >
+                      <span>🆕</span>
+                      Registered Today
+                      <span className="text-[10px] px-1.5 py-0.2 bg-slate-900 border border-slate-805 rounded-full font-mono text-indigo-450 font-bold">
+                        {newUsersList.length}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setUserFilterTab('online')}
+                      className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        userFilterTab === 'online'
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850/50 border border-transparent'
+                      }`}
+                    >
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      Online
+                      <span className="text-[10px] px-1.5 py-0.2 bg-slate-900 border border-slate-805 rounded-full font-mono text-emerald-400 font-bold">
+                        {onlineUsersList.length}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setUserFilterTab('offline')}
+                      className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        userFilterTab === 'offline'
+                          ? 'bg-slate-850/90 text-slate-350 border border-slate-700/60'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850/50 border border-transparent'
+                      }`}
+                    >
+                      <span className="w-2 h-2 rounded-full bg-slate-600" />
+                      Offline
+                      <span className="text-[10px] px-1.5 py-0.2 bg-slate-900 border border-slate-805 rounded-full font-mono text-slate-400">
+                        {offlineUsersList.length}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setUserFilterTab('search')}
+                      className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        userFilterTab === 'search'
+                          ? 'bg-indigo-600/20 text-indigo-450 border border-indigo-500/35'
+                          : 'text-slate-400 hover:text-indigo-400 hover:bg-slate-850/50 border border-transparent'
+                      }`}
+                    >
+                      <Search className="w-3.5 h-3.5 text-indigo-400" />
+                      Search Tab
+                    </button>
+                  </div>
+                </div>
+
+                {/* Custom Search Query Box displayed inside the Search Tab or as a global query filter */}
+                {(userFilterTab === 'search' || userSearchQuery !== '') && (
+                  <div className="p-4 px-5 bg-slate-950/20 border-b border-slate-800 flex items-center gap-3">
+                    <div className="relative flex-1">
+                      <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Search operator accounts by username..."
+                        value={userSearchQuery}
+                        onChange={(e) => setUserSearchQuery(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9.5 pr-8 py-2 text-xs text-slate-200 placeholder-slate-550 focus:outline-none focus:border-indigo-500 font-mono transition-all"
+                        autoFocus={userFilterTab === 'search'}
+                      />
+                      {userSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setUserSearchQuery('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500 hover:text-slate-200 p-1"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
 
             {showAddOperatorForm && (
               <form onSubmit={handleAddOperator} className="p-5 bg-slate-950/40 border-b border-slate-800 space-y-4">
@@ -1359,7 +1530,7 @@ export function AdminManagerScreen() {
                       required
                       value={newOperatorPass}
                       onChange={(e) => setNewOperatorPass(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-505 focus:ring-1 focus:ring-indigo-500 transition-all"
                       placeholder="Min 6 characters"
                     />
                   </div>
@@ -1386,113 +1557,188 @@ export function AdminManagerScreen() {
             )}
 
             <div className="p-5 divide-y divide-slate-850/80">
-              {/* Permanent Admin line */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3.5 first:pt-0">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-100">admin</span>
-                    <span className="text-[9px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded font-mono border border-indigo-500/20">ROOT ROLE</span>
+              {/* Permanent Admin line (Only show under 'all' category or when matching search query) */}
+              {(userFilterTab === 'all' || (userFilterTab === 'search' && ('admin'.includes(userSearchQuery.toLowerCase().trim()) || userSearchQuery.trim() === ''))) && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3.5 first:pt-0">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-100">admin</span>
+                      <span className="text-[9px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded font-mono border border-indigo-500/20">ROOT ROLE</span>
+                    </div>
+                    <span className="text-xs text-slate-400">System Admin login entry configuration</span>
                   </div>
-                  <span className="text-xs text-slate-400">System Admin login entry configuration</span>
+                  <div className="flex items-center gap-2 self-start sm:self-center">
+                    <span className="text-xs font-mono bg-slate-950/60 p-2.5 px-3 rounded-lg border border-slate-855 text-slate-400 max-w-[140px] truncate">
+                      {isAdminPassVisible ? adminPassword : '••••••••'}
+                    </span>
+                    <button 
+                      onClick={() => setIsAdminPassVisible(!isAdminPassVisible)} 
+                      className="p-2 bg-slate-850 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-all focus:outline-none"
+                      title="Reveal Root Password"
+                    >
+                      {isAdminPassVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 self-start sm:self-center">
-                  <span className="text-xs font-mono bg-slate-950/60 p-2.5 px-3 rounded-lg border border-slate-855 text-slate-400 max-w-[140px] truncate">
-                    {isAdminPassVisible ? adminPassword : '••••••••'}
-                  </span>
-                  <button 
-                    onClick={() => setIsAdminPassVisible(!isAdminPassVisible)} 
-                    className="p-2 bg-slate-850 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-all focus:outline-none"
-                    title="Reveal Root Password"
-                  >
-                    {isAdminPassVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
+              )}
 
               {/* Individual user rows */}
-              {Object.keys(users).length === 0 ? (
-                <div className="py-6 text-center text-slate-500 text-xs">
-                  No other operator users are currently registered in local database.
+              {activeCategoryUsers.length === 0 ? (
+                <div className="py-8 text-center text-slate-500 text-xs">
+                  {userSearchQuery 
+                    ? `No matching operator accounts found for "${userSearchQuery}".`
+                    : `No operator accounts active in the "${userFilterTab === 'new' ? 'Registered Today' : userFilterTab === 'online' ? 'Online' : userFilterTab === 'offline' ? 'Offline' : 'All Accounts'}" category.`}
                 </div>
               ) : (
-                Object.entries(users).map(([uName, data]) => {
+                activeCategoryUsers.map(([uName, data]) => {
                   const uData = typeof data === 'object' && data !== null 
                     ? (data as any) 
                     : { password: String(data), expiration: '', balance: 0, lastSeen: undefined };
                   const lastSeenStr = uData.lastSeen || lastSeenMap[uName];
                   const lastSeen = lastSeenStr ? new Date(lastSeenStr) : null;
-                  const isOnline = lastSeen && (Date.now() - lastSeen.getTime() < 65 * 1000);
+                  const isOnline = lastSeen && (Date.now() - lastSeen.getTime() < 65 * 1005);
+                  const userKeys = portalKeyRequests.filter(req => req.username?.toLowerCase() === uName.toLowerCase());
+                  const isExpanded = !!expandedUserKeys[uName];
+                  
                   return (
-                    <div key={uName} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3.5 last:pb-0">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-150 text-sm">{uName}</span>
-                          <div 
-                            className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded font-mono border ${isOnline ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-800/60 text-slate-500 border-slate-700/50'}`}
-                            title={lastSeen ? `Last seen: ${lastSeen.toLocaleString()}` : 'Never logged in'}
-                          >
-                            {isOnline ? <Wifi className="w-2.5 h-2.5 animate-pulse" /> : <WifiOff className="w-2.5 h-2.5" />}
-                            {isOnline ? 'ONLINE' : 'OFFLINE'}
+                    <div key={uName} className="py-4 first:pt-0 last:pb-0 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-150 text-sm">{uName}</span>
+                            <div 
+                              className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded font-mono border ${isOnline ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-800/60 text-slate-500 border-slate-700/50'}`}
+                              title={lastSeen ? `Last seen: ${lastSeen.toLocaleString()}` : 'Never logged in'}
+                            >
+                              {isOnline ? <Wifi className="w-2.5 h-2.5 animate-pulse" /> : <WifiOff className="w-2.5 h-2.5" />}
+                              {isOnline ? 'ONLINE' : 'OFFLINE'}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2 text-xs">
+                            <span className="text-slate-400 flex items-center gap-1.5 bg-slate-950/40 px-2 py-1 rounded border border-slate-855/40 text-[11px]">
+                              Balance: <strong className="text-emerald-400 font-mono">PHP {uData.balance || 0}</strong>
+                            </span>
+                            <span className="text-slate-400 flex items-center gap-1.5 bg-slate-950/40 px-2 py-1 rounded border border-slate-855/40 text-[11px]">
+                              License: <strong className="text-indigo-400">{uData.expiration ? `Expires ${uData.expiration.split('T')[0]}` : 'None'}</strong>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setExpandedUserKeys(prev => ({ ...prev, [uName]: !prev[uName] }))}
+                              className={`flex items-center gap-1.5 px-2 py-1 rounded border text-[11px] hover:bg-slate-820 hover:text-slate-100 transition-all cursor-pointer ${
+                                isExpanded 
+                                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-300 font-semibold shadow-sm' 
+                                  : 'border-slate-855/40 bg-slate-950/40 text-slate-400 hover:border-slate-750'
+                              }`}
+                              title="Click to expand list of purchased PortalKeys"
+                            >
+                              <KeyRound className="w-3 h-3 text-amber-500" />
+                              Keys: <strong className="text-amber-400 font-mono">{userKeys.length}</strong>
+                            </button>
                           </div>
                         </div>
-                        <div className="flex flex-wrap gap-2 text-xs">
-                          <span className="text-slate-400 flex items-center gap-1.5 bg-slate-950/40 px-2 py-1 rounded border border-slate-855/40 text-[11px]">
-                            Balance: <strong className="text-emerald-400">PHP {uData.balance || 0}</strong>
+
+                        {/* Controls row */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-mono bg-slate-950/60 p-2 px-2.5 rounded-lg border border-slate-855 text-slate-300 max-w-[120px] truncate">
+                            {visiblePasswords[uName] ? (uData.password || 'none') : '••••••••'}
                           </span>
-                          <span className="text-slate-400 flex items-center gap-1.5 bg-slate-950/40 px-2 py-1 rounded border border-slate-855/40 text-[11px]">
-                            License: <strong className="text-indigo-400">{uData.expiration ? `Expires ${uData.expiration.split('T')[0]}` : 'None'}</strong>
-                          </span>
+                          <button 
+                            onClick={() => togglePasswordVisible(uName)} 
+                            className="p-2 bg-slate-850 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                            title="Show/Hide Password"
+                          >
+                            {visiblePasswords[uName] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
+
+                          <button 
+                            onClick={() => handleResetUserPassword(uName, uData.password || '')}
+                            className="px-2 py-1.5 bg-slate-850 hover:bg-slate-800 text-slate-300 hover:text-amber-400 rounded-lg text-xs font-medium transition-colors border border-slate-800/50 flex items-center gap-1"
+                            title="Reset Operator Password"
+                          >
+                            <KeyRound className="w-3.5 h-3.5 text-amber-500" />
+                            Pin
+                          </button>
+
+                          <button 
+                            onClick={() => handleEditExpiration(uName, uData.expiration || '')}
+                            className="px-2 py-1.5 bg-slate-850 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition-colors border border-slate-800/50 flex items-center gap-1"
+                            title="Set voucher license month"
+                          >
+                            <Calendar className="w-3.5 h-3.5 text-blue-400" />
+                            Rent
+                          </button>
+
+                          <button 
+                            onClick={() => handleEditBalance(uName, uData.balance || 0)}
+                            className="px-2 py-1.5 bg-slate-850 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition-colors border border-slate-800/50 flex items-center gap-1"
+                            title="Adjust balance pesos directly"
+                          >
+                            <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+                            Load
+                          </button>
+
+                          <button 
+                            onClick={() => handleDeleteUser(uName)}
+                            className="p-1.5 bg-rose-550/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg transition-all"
+                            title="Erase Account"
+                          >
+                            <Trash className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
 
-                      {/* Controls row */}
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-xs font-mono bg-slate-950/60 p-2 px-2.5 rounded-lg border border-slate-855 text-slate-300 max-w-[120px] truncate">
-                          {visiblePasswords[uName] ? (uData.password || 'none') : '••••••••'}
-                        </span>
-                        <button 
-                          onClick={() => togglePasswordVisible(uName)} 
-                          className="p-2 bg-slate-850 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-                          title="Show/Hide Password"
-                        >
-                          {visiblePasswords[uName] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        </button>
-
-                        <button 
-                          onClick={() => handleResetUserPassword(uName, uData.password || '')}
-                          className="px-2 py-1.5 bg-slate-850 hover:bg-slate-800 text-slate-300 hover:text-amber-400 rounded-lg text-xs font-medium transition-colors border border-slate-800/50 flex items-center gap-1"
-                          title="Reset Operator Password"
-                        >
-                          <KeyRound className="w-3.5 h-3.5 text-amber-500" />
-                          Pin
-                        </button>
-
-                        <button 
-                          onClick={() => handleEditExpiration(uName, uData.expiration || '')}
-                          className="px-2 py-1.5 bg-slate-850 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition-colors border border-slate-800/50 flex items-center gap-1"
-                          title="Set voucher license month"
-                        >
-                          <Calendar className="w-3.5 h-3.5 text-blue-400" />
-                          Rent
-                        </button>
-
-                        <button 
-                          onClick={() => handleEditBalance(uName, uData.balance || 0)}
-                          className="px-2 py-1.5 bg-slate-850 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition-colors border border-slate-800/50 flex items-center gap-1"
-                          title="Adjust balance pesos directly"
-                        >
-                          <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
-                          Load
-                        </button>
-
-                        <button 
-                          onClick={() => handleDeleteUser(uName)}
-                          className="p-1.5 bg-rose-550/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg transition-all"
-                          title="Erase Account"
-                        >
-                          <Trash className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                      {/* Expandable PortalKeys display container */}
+                      {isExpanded && (
+                        <div className="bg-slate-950/60 border border-slate-850 p-3.5 rounded-xl space-y-2.5 animate-fade-in text-xs max-h-[300px] overflow-y-auto">
+                          <div className="flex items-center justify-between border-b border-slate-850/60 pb-2 mb-1">
+                            <span className="font-bold text-slate-100 flex items-center gap-1.5">
+                              <KeyRound className="w-3.5 h-3.5 text-amber-500" />
+                              Keys Vault for {uName}
+                            </span>
+                            <span className="text-[10px] bg-slate-900 border border-slate-800 px-2 py-0.5 rounded font-mono text-slate-400">
+                              {userKeys.length} Keys Total
+                            </span>
+                          </div>
+                          {userKeys.length === 0 ? (
+                            <div className="py-4 text-center text-slate-500 text-[11px] italic">
+                              No purchased keys on record for this operator.
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px]">
+                              {userKeys.map((keyReq, kIdx) => (
+                                <div key={keyReq.id || kIdx} className="bg-slate-900/80 border border-slate-850/60 p-2.5 rounded-lg flex items-center justify-between gap-3 hover:border-slate-800 hover:bg-slate-900 transition-all">
+                                  <div className="space-y-1 min-w-0 flex-1">
+                                    <div className="font-mono font-bold text-yellow-405 text-xs text-amber-400 break-all select-all flex items-center gap-1">
+                                      <span>{keyReq.portalKey}</span>
+                                    </div>
+                                    <div className="text-slate-500 text-[10px] flex flex-wrap gap-x-2.5 gap-y-0.5">
+                                      <span>SN: <span className="font-mono text-slate-350">{keyReq.serialNumber || 'Custom Key'}</span></span>
+                                      {keyReq.date && (
+                                        <span>Date: <span className="text-slate-400">{keyReq.date.split('T')[0]}</span></span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      try {
+                                        await navigator.clipboard.writeText(keyReq.portalKey);
+                                        await showAlert('Copied', `PortalKey "${keyReq.portalKey}" copied to clipboard!`);
+                                      } catch (err) {
+                                        console.warn(err);
+                                      }
+                                    }}
+                                    className="p-1 px-2.5 bg-slate-800 border border-slate-700/60 rounded text-slate-300 hover:bg-slate-700 hover:text-white transition-all font-semibold text-[10px]"
+                                    title="Copy key code"
+                                  >
+                                    Copy
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })
